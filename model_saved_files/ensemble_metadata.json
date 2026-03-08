@@ -1,0 +1,53 @@
+{
+  "best_method": "hard_voting",
+  "soft_voting_accuracy": 0.544392523364486,
+  "hard_voting_accuracy": 0.7733644859813084,
+  "weighted_voting_accuracy": 0.7313084112149533,
+  "best_individual_accuracy": 0.8247663551401869,
+  "best_ensemble_accuracy": 0.7733644859813084,
+  "ensemble_gain": -0.051401869158878566,
+  "models_used": [
+    "CNN",
+    "EfficientNetV2L",
+    "InceptionV3",
+    "MobileNet",
+    "ResNet",
+    "VGG16",
+    "Xception"
+  ],
+  "model_accuracies": {
+    "CNN": 0.6378504672897196,
+    "EfficientNetV2L": 0.26635514018691586,
+    "InceptionV3": 0.7476635514018691,
+    "MobileNet": 0.8247663551401869,
+    "ResNet": 0.13317757009345793,
+    "VGG16": 0.6004672897196262,
+    "Xception": 0.7336448598130841
+  },
+  "model_weights": {
+    "CNN": 0.16172985781990523,
+    "EfficientNetV2L": 0.06753554502369669,
+    "InceptionV3": 0.18957345971563982,
+    "MobileNet": 0.20912322274881517,
+    "ResNet": 0.03376777251184834,
+    "VGG16": 0.15225118483412323,
+    "Xception": 0.18601895734597157
+  },
+  "class_names": [
+    "Dariers disease",
+    "Lindsays nails",
+    "aloperia areata",
+    "beaus lines",
+    "bluish nail",
+    "bulging eyes",
+    "cataracts eyes",
+    "clubbing",
+    "crossed eyes",
+    "eczema",
+    "glucoma eyes",
+    "lip",
+    "tounge",
+    "uvieties eyes"
+  ],
+  "num_classes": 14
+}
