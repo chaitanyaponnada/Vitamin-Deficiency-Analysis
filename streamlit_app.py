@@ -330,10 +330,57 @@ st.markdown("""
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_DIR = BASE_DIR / 'model_saved_files'
+
+
+def resolve_model_dir(base_dir):
+    """Resolve model directory across local and container environments."""
+    candidates = [
+        base_dir / 'model_saved_files',
+        Path.cwd() / 'model_saved_files',
+        Path('/app/model_saved_files'),
+        Path('/opt/render/project/src/model_saved_files'),
+    ]
+
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+
+    return base_dir / 'model_saved_files'
+
+
+MODEL_DIR = resolve_model_dir(BASE_DIR)
 DATA_DIR = BASE_DIR / 'dataset' / 'train'
 IMG_HEIGHT, IMG_WIDTH = 128, 128
 ENSEMBLE_METHOD = 'soft_voting'
+
+
+def resolve_model_file(model_file):
+    """Find model file in expected and fallback locations."""
+    primary = MODEL_DIR / model_file
+    if primary.exists() and primary.is_file():
+        return primary
+
+    fallback_dirs = [
+        MODEL_DIR,
+        BASE_DIR / 'model_saved_files',
+        BASE_DIR / 'images' / 'others',
+        Path('/app/model_saved_files'),
+        Path('/app/images/others'),
+        Path('/opt/render/project/src/model_saved_files'),
+        Path('/opt/render/project/src/images/others'),
+    ]
+
+    model_file_lower = model_file.lower()
+    for folder in fallback_dirs:
+        if not folder.exists() or not folder.is_dir():
+            continue
+        for candidate in folder.iterdir():
+            if candidate.is_file() and candidate.name.lower() == model_file_lower:
+                return candidate
+
+    return primary
+
+
 MODEL_MAPPING = {
     'CNN': 'Cnn.h5',
     'EfficientNetV2L': 'EfficientNetV2L.h5',
@@ -561,18 +608,31 @@ def load_all_models(num_classes):
     load_status = []
 
     selected_mapping = {k: MODEL_MAPPING[k] for k in ACTIVE_MODEL_NAMES if k in MODEL_MAPPING}
-    log_event(f"Model load started. total_selected={len(selected_mapping)} num_classes={num_classes} lightweight={LIGHTWEIGHT_MODE}")
+    model_dir_exists = MODEL_DIR.exists()
+    model_dir_listing = []
+    if model_dir_exists:
+        try:
+            model_dir_listing = sorted([p.name for p in MODEL_DIR.iterdir()])
+        except Exception:
+            model_dir_listing = []
+
+    log_event(
+        f"Model load started. total_selected={len(selected_mapping)} num_classes={num_classes} "
+        f"lightweight={LIGHTWEIGHT_MODE} model_dir={MODEL_DIR} exists={model_dir_exists}"
+    )
+    if model_dir_listing:
+        log_event(f"Model dir listing: {', '.join(model_dir_listing)}")
 
     for model_name, model_file in selected_mapping.items():
         model_start = time.perf_counter()
-        model_path = MODEL_DIR / model_file
-        log_event(f"Loading model={model_name} file={model_file}")
+        model_path = resolve_model_file(model_file)
+        log_event(f"Loading model={model_name} file={model_file} resolved_path={model_path}")
         if not model_path.exists():
             log_event(f"Missing model file for {model_name}: {model_path}", level="warning")
             load_status.append({
                 'model': model_name,
                 'status': 'missing',
-                'details': f'Model file not found: {model_file}'
+                'details': f'Model file not found: {model_file} (resolved: {model_path})'
             })
             continue
 
@@ -1226,7 +1286,8 @@ if __name__ == "__main__":
             f"Environment snapshot: RENDER={os.getenv('RENDER', '')} "
             f"RENDER_SERVICE_ID={'set' if os.getenv('RENDER_SERVICE_ID') else 'unset'} "
             f"LIGHTWEIGHT_MODE_ENV={os.getenv('LIGHTWEIGHT_MODE', '<not-set>')} "
-            f"LIGHTWEIGHT_MODE_RESOLVED={LIGHTWEIGHT_MODE}"
+            f"LIGHTWEIGHT_MODE_RESOLVED={LIGHTWEIGHT_MODE} "
+            f"BASE_DIR={BASE_DIR} MODEL_DIR={MODEL_DIR}"
         )
         main()
     except Exception as exc:
