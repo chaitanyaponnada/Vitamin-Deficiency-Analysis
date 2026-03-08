@@ -469,6 +469,10 @@ except Exception:
 # Minimum models needed for inference (1 = allow any single model)
 MIN_MODELS_FOR_INFERENCE = 1
 
+# Global cache for models (manual caching to avoid Streamlit cache replay issues)
+_MODELS_CACHE = None
+_MODELS_CACHE_KEY = None
+
 
 @keras.utils.register_keras_serializable(package='Custom')
 class CustomScaleLayer(keras.layers.Layer):
@@ -665,9 +669,21 @@ MODEL_INFO = {
     'Xception': {'description': 'Extreme Inception architecture', 'color': '#30cfd0'}
 }
 
-@st.cache_resource(show_spinner=False)
 def load_all_models(num_classes, _progress_callback=None):
-    """Load all trained models and keep only class-compatible ones."""
+    """Load all trained models and keep only class-compatible ones.
+    
+    Uses manual caching to avoid Streamlit cache replay errors with UI callbacks.
+    """
+    global _MODELS_CACHE, _MODELS_CACHE_KEY
+    
+    # Create cache key based on num_classes and active models
+    cache_key = (num_classes, tuple(sorted(ACTIVE_MODEL_NAMES)))
+    
+    # Return cached models if available (only when called without progress callback)
+    if _progress_callback is None and _MODELS_CACHE is not None and _MODELS_CACHE_KEY == cache_key:
+        log_event("Returning cached models")
+        return _MODELS_CACHE
+    
     models = {}
     available_models = []
     load_status = []
@@ -910,7 +926,15 @@ def load_all_models(num_classes, _progress_callback=None):
         except Exception:
             pass
 
-    return models, available_models, load_status
+    result = (models, available_models, load_status)
+    
+    # Cache the result (only when called without progress callback)
+    if _progress_callback is None:
+        _MODELS_CACHE = result
+        _MODELS_CACHE_KEY = cache_key
+        log_event("Models cached successfully")
+    
+    return result
 
 @st.cache_data
 def get_class_names():
