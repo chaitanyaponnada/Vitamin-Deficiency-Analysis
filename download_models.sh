@@ -4,7 +4,7 @@
 set -e
 
 REPO="chaitanyaponnada/Vitamin-Deficiency-Analysis"
-RELEASE_TAG="v1.0-models"
+RELEASE_TAG="v1.0-Models"
 BASE_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}"
 
 echo "Downloading model files from GitHub Release ${RELEASE_TAG}..."
