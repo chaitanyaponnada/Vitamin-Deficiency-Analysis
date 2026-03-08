@@ -625,7 +625,7 @@ MODEL_INFO = {
 }
 
 @st.cache_resource(show_spinner=False)
-def load_all_models(num_classes):
+def load_all_models(num_classes, _progress_callback=None):
     """Load all trained models and keep only class-compatible ones."""
     models = {}
     available_models = []
@@ -644,22 +644,51 @@ def load_all_models(num_classes):
         f"Model load started. total_selected={len(selected_mapping)} num_classes={num_classes} "
         f"lightweight={LIGHTWEIGHT_MODE} model_dir={MODEL_DIR} exists={model_dir_exists}"
     )
+    if _progress_callback:
+        _progress_callback({
+            'phase': 'init',
+            'index': 0,
+            'total': len(selected_mapping),
+            'message': 'Model loading started.'
+        })
+
     if model_dir_listing:
         log_event(f"Model dir listing: {', '.join(model_dir_listing)}")
     else:
         log_event("Model dir listing: <empty or unreadable>", level="warning")
 
-    for model_name, model_file in selected_mapping.items():
+    total_models = len(selected_mapping)
+    for idx, (model_name, model_file) in enumerate(selected_mapping.items(), start=1):
         model_start = time.perf_counter()
         model_path = resolve_model_file(model_file)
         log_event(f"Loading model={model_name} file={model_file} resolved_path={model_path}")
+        if _progress_callback:
+            _progress_callback({
+                'phase': 'start',
+                'index': idx,
+                'total': total_models,
+                'model': model_name,
+                'file': model_file,
+                'path': str(model_path),
+                'message': f'Starting {model_name}'
+            })
+
         if not model_path.exists():
             log_event(f"Missing model file for {model_name}: {model_path}", level="warning")
-            load_status.append({
+            status_row = {
                 'model': model_name,
                 'status': 'missing',
                 'details': f'Model file not found: {model_file} (resolved: {model_path}). Required folder: {MODEL_DIR}'
-            })
+            }
+            load_status.append(status_row)
+            if _progress_callback:
+                _progress_callback({
+                    'phase': 'missing',
+                    'index': idx,
+                    'total': total_models,
+                    'model': model_name,
+                    'details': status_row['details']
+                })
             continue
 
         try:
@@ -676,33 +705,69 @@ def load_all_models(num_classes):
                     f"Skipped model={model_name} due to class mismatch output_dim={output_dim} expected={num_classes} elapsed={elapsed:.2f}s",
                     level="warning",
                 )
-                load_status.append({
+                status_row = {
                     'model': model_name,
                     'status': 'skipped',
                     'details': f'Output classes mismatch ({output_dim} != {num_classes})'
-                })
+                }
+                load_status.append(status_row)
+                if _progress_callback:
+                    _progress_callback({
+                        'phase': 'skipped',
+                        'index': idx,
+                        'total': total_models,
+                        'model': model_name,
+                        'details': status_row['details']
+                    })
             else:
                 elapsed = time.perf_counter() - model_start
                 log_event(f"Loaded model={model_name} elapsed={elapsed:.2f}s")
                 models[model_name] = mdl
                 available_models.append(model_name)
-                load_status.append({
+                status_row = {
                     'model': model_name,
                     'status': 'loaded',
                     'details': f'Loaded from {model_file}'
-                })
+                }
+                load_status.append(status_row)
+                if _progress_callback:
+                    _progress_callback({
+                        'phase': 'loaded',
+                        'index': idx,
+                        'total': total_models,
+                        'model': model_name,
+                        'details': status_row['details']
+                    })
         except Exception as e:
             elapsed = time.perf_counter() - model_start
             tb = traceback.format_exc(limit=6)
             log_event(f"Failed model={model_name} elapsed={elapsed:.2f}s error={e}", level="error")
             log_event(tb, level="error")
-            load_status.append({
+            status_row = {
                 'model': model_name,
                 'status': 'failed',
                 'details': f"{e}\n{tb}"
-            })
+            }
+            load_status.append(status_row)
+            if _progress_callback:
+                _progress_callback({
+                    'phase': 'failed',
+                    'index': idx,
+                    'total': total_models,
+                    'model': model_name,
+                    'details': str(e)
+                })
 
     log_event(f"Model load completed. loaded={len(available_models)} issues={len(load_status) - len(available_models)}")
+    if _progress_callback:
+        _progress_callback({
+            'phase': 'complete',
+            'index': total_models,
+            'total': total_models,
+            'loaded': len(available_models),
+            'issues': len(load_status) - len(available_models),
+            'message': 'Model loading completed.'
+        })
 
     return models, available_models, load_status
 
@@ -1100,12 +1165,79 @@ def main():
                     return
 
                 try:
-                    startup_ui = show_center_loader("Initializing model runtime")
-                    try:
-                        models, available_models, load_status = load_all_models(len(classes))
-                        st.session_state['load_status'] = load_status
-                    finally:
-                        startup_ui.empty()
+                    st.markdown("#### Live Model Loading")
+                    model_load_note = st.empty()
+                    model_load_progress = st.progress(0)
+                    model_load_table = st.empty()
+                    live_rows = []
+
+                    def update_model_load_ui(event):
+                        phase = event.get('phase', '')
+                        idx = int(event.get('index', 0) or 0)
+                        total = int(event.get('total', 0) or 0)
+                        denominator = total if total > 0 else 1
+                        frac = min(max(float(idx) / float(denominator), 0.0), 1.0)
+                        pct = int(frac * 100)
+
+                        model = event.get('model', '')
+                        details = str(event.get('details', '') or '').splitlines()[0]
+
+                        if phase == 'init':
+                            model_load_note.info("Initializing model loading...")
+                        elif phase == 'start':
+                            model_load_note.info(f"[{idx}/{total}] Loading {model}...")
+                        elif phase == 'loaded':
+                            model_load_note.success(f"[{idx}/{total}] Loaded {model}")
+                        elif phase == 'failed':
+                            model_load_note.error(f"[{idx}/{total}] Failed {model}: {details}")
+                        elif phase == 'missing':
+                            model_load_note.warning(f"[{idx}/{total}] Missing {model}: {details}")
+                        elif phase == 'skipped':
+                            model_load_note.warning(f"[{idx}/{total}] Skipped {model}: {details}")
+                        elif phase == 'complete':
+                            loaded = int(event.get('loaded', 0) or 0)
+                            issues = int(event.get('issues', 0) or 0)
+                            model_load_note.success(
+                                f"Model loading completed. Loaded={loaded}, Issues={issues}."
+                            )
+
+                        progress_text = f"Model loading progress: {pct}% ({idx}/{total})" if total > 0 else "Model loading progress"
+                        try:
+                            model_load_progress.progress(frac, text=progress_text)
+                        except TypeError:
+                            model_load_progress.progress(frac)
+
+                        if phase in {'loaded', 'failed', 'missing', 'skipped'}:
+                            live_rows.append({
+                                'step': len(live_rows) + 1,
+                                'model': model,
+                                'status': phase,
+                                'details': details,
+                            })
+                            model_load_table.dataframe(pd.DataFrame(live_rows), width='stretch', hide_index=True)
+
+                    models, available_models, load_status = load_all_models(
+                        len(classes),
+                        _progress_callback=update_model_load_ui,
+                    )
+                    st.session_state['load_status'] = load_status
+
+                    if load_status and not live_rows:
+                        # Cache hit path: populate table even when per-model callbacks were not replayed.
+                        fallback_rows = []
+                        for i, row in enumerate(load_status, start=1):
+                            fallback_rows.append({
+                                'step': i,
+                                'model': row.get('model', ''),
+                                'status': row.get('status', ''),
+                                'details': str(row.get('details', '')).splitlines()[0],
+                            })
+                        model_load_table.dataframe(pd.DataFrame(fallback_rows), width='stretch', hide_index=True)
+                        model_load_note.info("Models were retrieved from cache. Showing latest known status table.")
+                        try:
+                            model_load_progress.progress(1.0, text="Model loading progress: 100% (cache)")
+                        except TypeError:
+                            model_load_progress.progress(1.0)
 
                     if not available_models:
                         st.error("No models are available for inference. Check diagnostics and logs.")
