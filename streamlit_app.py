@@ -9,6 +9,8 @@ warnings.filterwarnings('ignore')
 
 import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
+import time
+import traceback
 from pathlib import Path
 
 import streamlit as st
@@ -21,6 +23,26 @@ from keras import ops
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+
+
+APP_LOGGER = logging.getLogger("vitamin_app")
+if not APP_LOGGER.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(message)s"))
+    APP_LOGGER.addHandler(_handler)
+APP_LOGGER.setLevel(logging.INFO)
+
+
+def log_event(message, level="info"):
+    """Log to Render CLI and keep flush behavior predictable."""
+    msg = f"[vitamin-app] {message}"
+    if level == "error":
+        APP_LOGGER.error(msg)
+    elif level == "warning":
+        APP_LOGGER.warning(msg)
+    else:
+        APP_LOGGER.info(msg)
+    print(msg, flush=True)
 
 # Page configuration
 st.set_page_config(
@@ -481,10 +503,14 @@ def load_all_models(num_classes):
     load_status = []
 
     selected_mapping = {k: MODEL_MAPPING[k] for k in ACTIVE_MODEL_NAMES if k in MODEL_MAPPING}
+    log_event(f"Model load started. total_selected={len(selected_mapping)} num_classes={num_classes} lightweight={LIGHTWEIGHT_MODE}")
 
     for model_name, model_file in selected_mapping.items():
+        model_start = time.perf_counter()
         model_path = MODEL_DIR / model_file
+        log_event(f"Loading model={model_name} file={model_file}")
         if not model_path.exists():
+            log_event(f"Missing model file for {model_name}: {model_path}", level="warning")
             load_status.append({
                 'model': model_name,
                 'status': 'missing',
@@ -501,12 +527,19 @@ def load_all_models(num_classes):
             output_dim = output_shape[-1] if isinstance(output_shape, tuple) else None
 
             if output_dim is not None and num_classes > 0 and int(output_dim) != int(num_classes):
+                elapsed = time.perf_counter() - model_start
+                log_event(
+                    f"Skipped model={model_name} due to class mismatch output_dim={output_dim} expected={num_classes} elapsed={elapsed:.2f}s",
+                    level="warning",
+                )
                 load_status.append({
                     'model': model_name,
                     'status': 'skipped',
                     'details': f'Output classes mismatch ({output_dim} != {num_classes})'
                 })
             else:
+                elapsed = time.perf_counter() - model_start
+                log_event(f"Loaded model={model_name} elapsed={elapsed:.2f}s")
                 models[model_name] = mdl
                 available_models.append(model_name)
                 load_status.append({
@@ -515,11 +548,17 @@ def load_all_models(num_classes):
                     'details': f'Loaded from {model_file}'
                 })
         except Exception as e:
+            elapsed = time.perf_counter() - model_start
+            tb = traceback.format_exc(limit=6)
+            log_event(f"Failed model={model_name} elapsed={elapsed:.2f}s error={e}", level="error")
+            log_event(tb, level="error")
             load_status.append({
                 'model': model_name,
                 'status': 'failed',
-                'details': str(e)
+                'details': f"{e}\n{tb}"
             })
+
+    log_event(f"Model load completed. loaded={len(available_models)} issues={len(load_status) - len(available_models)}")
 
     return models, available_models, load_status
 
@@ -604,8 +643,12 @@ def predict_ensemble(img, models, available_models, num_classes, method='soft_vo
     individual_predictions = {}
     runtime_errors = {}
 
+    log_event(f"Inference started. models={len(available_models)} method={method}")
+
     for model_name in available_models:
         try:
+            infer_start = time.perf_counter()
+            log_event(f"Infer model={model_name} started")
             img_expanded = preprocess_for_model(img, models[model_name])
             pred = models[model_name].predict(img_expanded, verbose=0)
             pred_vector = normalize_probabilities(pred[0])
@@ -614,14 +657,21 @@ def predict_ensemble(img, models, available_models, num_classes, method='soft_vo
                 runtime_errors[model_name] = (
                     f'Prediction size mismatch ({len(pred_vector)} != {num_classes})'
                 )
+                log_event(runtime_errors[model_name], level="warning")
                 continue
 
             predictions.append(pred_vector)
             individual_predictions[model_name] = pred_vector
+            infer_elapsed = time.perf_counter() - infer_start
+            log_event(f"Infer model={model_name} completed elapsed={infer_elapsed:.2f}s")
         except Exception as e:
-            runtime_errors[model_name] = str(e)
+            tb = traceback.format_exc(limit=6)
+            runtime_errors[model_name] = f"{e}\n{tb}"
+            log_event(f"Infer model={model_name} failed error={e}", level="error")
+            log_event(tb, level="error")
 
     if not predictions:
+        log_event("Inference failed: no valid model predictions were produced.", level="error")
         raise ValueError('No model produced a valid prediction. Check model diagnostics.')
 
     pred_matrix = np.array(predictions, dtype=np.float64)
@@ -649,6 +699,7 @@ def predict_ensemble(img, models, available_models, num_classes, method='soft_vo
         class_idx = int(np.argmax(ensemble_vector))
         confidence = float(ensemble_vector[class_idx])
 
+    log_event(f"Inference completed. class_idx={class_idx} confidence={confidence:.4f} runtime_errors={len(runtime_errors)}")
     return class_idx, confidence, individual_predictions, ensemble_vector, runtime_errors
 
 def create_prediction_chart(individual_predictions, classes, predicted_class):
@@ -842,12 +893,14 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    load_ui = show_center_loader("Initializing model runtime")
     dataset_classes = get_class_names()
     metadata = load_ensemble_metadata()
     classes = metadata.get('class_names', dataset_classes)
-    models, available_models, load_status = load_all_models(len(classes))
-    load_ui.empty()
+
+    # Do not load models on page open; load on demand to prevent Render gateway timeouts.
+    models = {}
+    available_models = []
+    load_status = st.session_state.get('load_status', [])
 
     active_method = metadata.get('best_method', ENSEMBLE_METHOD)
     active_weights = metadata.get('model_weights', {})
@@ -870,6 +923,7 @@ def main():
         c1.metric("Loaded Models", f"{loaded_count}")
         c2.metric("Detected Classes", f"{len(classes)}")
         c3.metric("Model Issues", f"{issue_count}")
+        st.caption("Models load when you click Run Analysis to keep startup fast on Render.")
 
         uploaded_file = st.file_uploader(
             "Select image",
@@ -896,16 +950,26 @@ def main():
                 st.rerun()
 
             if run_analysis:
-                if not available_models:
-                    st.error("No models are available for inference.")
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    return
                 if not classes:
                     st.error("No class folders found. Verify the dataset/train directory.")
                     st.markdown('</div>', unsafe_allow_html=True)
                     return
 
                 try:
+                    startup_ui = show_center_loader("Initializing model runtime")
+                    try:
+                        models, available_models, load_status = load_all_models(len(classes))
+                        st.session_state['load_status'] = load_status
+                    finally:
+                        startup_ui.empty()
+
+                    if not available_models:
+                        st.error("No models are available for inference. Check diagnostics and logs.")
+                        if load_status:
+                            st.dataframe(pd.DataFrame(load_status), width='stretch', hide_index=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        return
+
                     infer_ui = show_center_loader("Analyzing image")
                     try:
                         class_idx, confidence, individual_preds, ensemble_pred, runtime_errors = predict_ensemble(
@@ -937,6 +1001,8 @@ def main():
                         'deficiency_data': deficiency_data,
                     }
                 except Exception as e:
+                    log_event(f"Run Analysis failed: {e}", level="error")
+                    log_event(traceback.format_exc(limit=8), level="error")
                     st.error("Inference failed. Review model diagnostics and try another image.")
                     st.exception(e)
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -1046,6 +1112,8 @@ RECOMMENDATIONS
 
         if not status_df.empty:
             st.dataframe(status_df, width='stretch', hide_index=True)
+        else:
+            st.info("No model load logs yet. Click Run Analysis once to initialize models and populate diagnostics.")
 
         metadata_path = MODEL_DIR / 'ensemble_metadata.json'
         if metadata_path.exists():
@@ -1094,4 +1162,16 @@ Medical disclaimer: This tool is for informational purposes only and is not a su
     st.caption("Vitamin Deficiency AI | Ensemble Inference Interface")
 
 if __name__ == "__main__":
-    main()
+    try:
+        log_event("Streamlit script execution started.")
+        log_event(
+            f"Environment snapshot: RENDER={os.getenv('RENDER', '')} "
+            f"RENDER_SERVICE_ID={'set' if os.getenv('RENDER_SERVICE_ID') else 'unset'} "
+            f"LIGHTWEIGHT_MODE_ENV={os.getenv('LIGHTWEIGHT_MODE', '<not-set>')} "
+            f"LIGHTWEIGHT_MODE_RESOLVED={LIGHTWEIGHT_MODE}"
+        )
+        main()
+    except Exception as exc:
+        log_event(f"Fatal app error: {exc}", level="error")
+        log_event(traceback.format_exc(limit=12), level="error")
+        raise
