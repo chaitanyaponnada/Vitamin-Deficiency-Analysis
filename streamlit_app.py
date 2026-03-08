@@ -460,6 +460,12 @@ ACTIVE_MODEL_NAMES = [
     if (not LIGHTWEIGHT_MODE) or (name not in HEAVY_MODELS)
 ]
 
+try:
+    _default_max_model_mb = '70' if (IS_RENDER or IS_STREAMLIT_CLOUD) else '0'
+    MAX_MODEL_FILE_MB = float(get_runtime_setting('MAX_MODEL_FILE_MB', _default_max_model_mb))
+except Exception:
+    MAX_MODEL_FILE_MB = 0.0
+
 
 @keras.utils.register_keras_serializable(package='Custom')
 class CustomScaleLayer(keras.layers.Layer):
@@ -722,6 +728,33 @@ def load_all_models(num_classes, _progress_callback=None):
                     'details': status_row['details']
                 })
             continue
+
+        if MAX_MODEL_FILE_MB > 0:
+            try:
+                model_size_mb = model_path.stat().st_size / (1024 * 1024)
+            except Exception:
+                model_size_mb = 0.0
+            if model_size_mb > MAX_MODEL_FILE_MB:
+                details = (
+                    f"Skipped due to size limit ({model_size_mb:.1f}MB > {MAX_MODEL_FILE_MB:.1f}MB). "
+                    "Increase MAX_MODEL_FILE_MB to include this model."
+                )
+                log_event(f"Skipped model={model_name} {details}", level="warning")
+                status_row = {
+                    'model': model_name,
+                    'status': 'skipped',
+                    'details': details,
+                }
+                load_status.append(status_row)
+                if _progress_callback:
+                    _progress_callback({
+                        'phase': 'skipped',
+                        'index': idx,
+                        'total': total_models,
+                        'model': model_name,
+                        'details': details,
+                    })
+                continue
 
         try:
             # Add timeout for model loading (120 seconds max per model)
@@ -1094,6 +1127,90 @@ def show_center_loader(message):
     )
     return placeholder
 
+
+def load_models_with_live_ui(num_classes):
+    """Load models once and render live progress UI during startup."""
+    st.markdown("#### Live Model Loading")
+    loader_overlay = show_center_loader("Loading models at startup")
+    model_load_note = st.empty()
+    model_load_progress = st.progress(0)
+    model_load_table = st.empty()
+    live_rows = []
+
+    def update_model_load_ui(event):
+        phase = event.get('phase', '')
+        idx = int(event.get('index', 0) or 0)
+        total = int(event.get('total', 0) or 0)
+        denominator = total if total > 0 else 1
+        frac = min(max(float(idx) / float(denominator), 0.0), 1.0)
+        pct = int(frac * 100)
+
+        model = event.get('model', '')
+        details_lines = str(event.get('details', '') or '').splitlines()
+        details = details_lines[0] if details_lines else ''
+
+        if phase == 'init':
+            model_load_note.info("Initializing model loading...")
+        elif phase == 'start':
+            model_load_note.info(f"[{idx}/{total}] Loading {model}...")
+        elif phase == 'loaded':
+            model_load_note.success(f"[{idx}/{total}] Loaded {model}")
+        elif phase == 'failed':
+            model_load_note.error(f"[{idx}/{total}] Failed {model}: {details}")
+        elif phase == 'missing':
+            model_load_note.warning(f"[{idx}/{total}] Missing {model}: {details}")
+        elif phase == 'skipped':
+            model_load_note.warning(f"[{idx}/{total}] Skipped {model}: {details}")
+        elif phase == 'complete':
+            loaded = int(event.get('loaded', 0) or 0)
+            issues = int(event.get('issues', 0) or 0)
+            model_load_note.success(
+                f"Model loading completed. Loaded={loaded}, Issues={issues}."
+            )
+
+        progress_text = f"Model loading progress: {pct}% ({idx}/{total})" if total > 0 else "Model loading progress"
+        try:
+            model_load_progress.progress(frac, text=progress_text)
+        except TypeError:
+            model_load_progress.progress(frac)
+
+        if phase in {'loaded', 'failed', 'missing', 'skipped'}:
+            live_rows.append({
+                'step': len(live_rows) + 1,
+                'model': model,
+                'status': phase,
+                'details': details,
+            })
+            model_load_table.dataframe(pd.DataFrame(live_rows), width='stretch', hide_index=True)
+
+    try:
+        models, available_models, load_status = load_all_models(
+            num_classes,
+            _progress_callback=update_model_load_ui,
+        )
+    finally:
+        loader_overlay.empty()
+
+    if load_status and not live_rows:
+        # Cache hit path: populate table when per-model callbacks are not replayed.
+        fallback_rows = []
+        for i, row in enumerate(load_status, start=1):
+            details_lines = str(row.get('details', '')).splitlines()
+            fallback_rows.append({
+                'step': i,
+                'model': row.get('model', ''),
+                'status': row.get('status', ''),
+                'details': details_lines[0] if details_lines else '',
+            })
+        model_load_table.dataframe(pd.DataFrame(fallback_rows), width='stretch', hide_index=True)
+        model_load_note.info("Models were retrieved from server cache.")
+        try:
+            model_load_progress.progress(1.0, text="Model loading progress: 100% (cache)")
+        except TypeError:
+            model_load_progress.progress(1.0)
+
+    return models, available_models, load_status
+
 # ==================== MAIN APP ====================
 
 def main():
@@ -1187,13 +1304,17 @@ def main():
     metadata = load_ensemble_metadata()
     classes = metadata.get('class_names', dataset_classes)
 
-    # Do not load models on page open; load on demand to keep startup responsive.
-    models = {}
-    available_models = []
-    load_status = st.session_state.get('load_status', [])
-
     active_method = metadata.get('best_method', ENSEMBLE_METHOD)
     active_weights = metadata.get('model_weights', {})
+
+    # Load models at startup with animation once per session; reuse cache afterwards.
+    if not st.session_state.get('startup_models_initialized', False):
+        models, available_models, load_status = load_models_with_live_ui(len(classes))
+        st.session_state['startup_models_initialized'] = True
+    else:
+        models, available_models, load_status = load_all_models(len(classes))
+
+    st.session_state['load_status'] = load_status
 
     status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=['model', 'status', 'details'])
     loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
@@ -1213,7 +1334,7 @@ def main():
         c1.metric("Loaded Models", f"{loaded_count}")
         c2.metric("Detected Classes", f"{len(classes)}")
         c3.metric("Model Issues", f"{issue_count}")
-        st.caption("Models load when you click Run Analysis to keep startup fast on Streamlit Cloud and Render.")
+        st.caption("Models are preloaded once at server startup and reused for all analyses.")
 
         uploaded_file = st.file_uploader(
             "Select image",
@@ -1245,90 +1366,14 @@ def main():
                     st.markdown('</div>', unsafe_allow_html=True)
                     return
 
+                if not available_models:
+                    st.error("No models are available for inference. Check diagnostics and logs.")
+                    if load_status:
+                        st.dataframe(pd.DataFrame(load_status), width='stretch', hide_index=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    return
+
                 try:
-                    st.markdown("#### Live Model Loading")
-                    model_load_note = st.empty()
-                    model_load_progress = st.progress(0)
-                    model_load_table = st.empty()
-                    live_rows = []
-
-                    def update_model_load_ui(event):
-                        phase = event.get('phase', '')
-                        idx = int(event.get('index', 0) or 0)
-                        total = int(event.get('total', 0) or 0)
-                        denominator = total if total > 0 else 1
-                        frac = min(max(float(idx) / float(denominator), 0.0), 1.0)
-                        pct = int(frac * 100)
-
-                        model = event.get('model', '')
-                        details_lines = str(event.get('details', '') or '').splitlines()
-                        details = details_lines[0] if details_lines else ''
-
-                        if phase == 'init':
-                            model_load_note.info("Initializing model loading...")
-                        elif phase == 'start':
-                            model_load_note.info(f"[{idx}/{total}] Loading {model}...")
-                        elif phase == 'loaded':
-                            model_load_note.success(f"[{idx}/{total}] Loaded {model}")
-                        elif phase == 'failed':
-                            model_load_note.error(f"[{idx}/{total}] Failed {model}: {details}")
-                        elif phase == 'missing':
-                            model_load_note.warning(f"[{idx}/{total}] Missing {model}: {details}")
-                        elif phase == 'skipped':
-                            model_load_note.warning(f"[{idx}/{total}] Skipped {model}: {details}")
-                        elif phase == 'complete':
-                            loaded = int(event.get('loaded', 0) or 0)
-                            issues = int(event.get('issues', 0) or 0)
-                            model_load_note.success(
-                                f"Model loading completed. Loaded={loaded}, Issues={issues}."
-                            )
-
-                        progress_text = f"Model loading progress: {pct}% ({idx}/{total})" if total > 0 else "Model loading progress"
-                        try:
-                            model_load_progress.progress(frac, text=progress_text)
-                        except TypeError:
-                            model_load_progress.progress(frac)
-
-                        if phase in {'loaded', 'failed', 'missing', 'skipped'}:
-                            live_rows.append({
-                                'step': len(live_rows) + 1,
-                                'model': model,
-                                'status': phase,
-                                'details': details,
-                            })
-                            model_load_table.dataframe(pd.DataFrame(live_rows), width='stretch', hide_index=True)
-
-                    models, available_models, load_status = load_all_models(
-                        len(classes),
-                        _progress_callback=update_model_load_ui,
-                    )
-                    st.session_state['load_status'] = load_status
-
-                    if load_status and not live_rows:
-                        # Cache hit path: populate table even when per-model callbacks were not replayed.
-                        fallback_rows = []
-                        for i, row in enumerate(load_status, start=1):
-                            details_lines = str(row.get('details', '')).splitlines()
-                            fallback_rows.append({
-                                'step': i,
-                                'model': row.get('model', ''),
-                                'status': row.get('status', ''),
-                                'details': details_lines[0] if details_lines else '',
-                            })
-                        model_load_table.dataframe(pd.DataFrame(fallback_rows), width='stretch', hide_index=True)
-                        model_load_note.info("Models were retrieved from cache. Showing latest known status table.")
-                        try:
-                            model_load_progress.progress(1.0, text="Model loading progress: 100% (cache)")
-                        except TypeError:
-                            model_load_progress.progress(1.0)
-
-                    if not available_models:
-                        st.error("No models are available for inference. Check diagnostics and logs.")
-                        if load_status:
-                            st.dataframe(pd.DataFrame(load_status), width='stretch', hide_index=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        return
-
                     infer_ui = show_center_loader("Analyzing image")
                     try:
                         class_idx, confidence, individual_preds, ensemble_pred, runtime_errors = predict_ensemble(
@@ -1472,7 +1517,7 @@ RECOMMENDATIONS
         if not status_df.empty:
             st.dataframe(status_df, width='stretch', hide_index=True)
         else:
-            st.info("No model load logs yet. Click Run Analysis once to initialize models and populate diagnostics.")
+            st.info("No model load logs yet. Models will initialize at startup and then appear here.")
 
         metadata_path = MODEL_DIR / 'ensemble_metadata.json'
         if metadata_path.exists():
