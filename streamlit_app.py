@@ -12,6 +12,9 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 import time
 import traceback
 from pathlib import Path
+import gc
+import signal
+from contextlib import contextmanager
 
 import streamlit as st
 import numpy as np
@@ -23,6 +26,29 @@ from keras import ops
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+
+
+class TimeoutException(Exception):
+    pass
+
+
+@contextmanager
+def time_limit(seconds):
+    """Context manager to limit execution time (Unix-like systems)."""
+    def signal_handler(signum, frame):
+        raise TimeoutException("Timed out")
+    
+    # Only set alarm on Unix systems
+    if hasattr(signal, 'SIGALRM'):
+        signal.signal(signal.SIGALRM, signal_handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+    else:
+        # On Windows, just yield without timeout
+        yield
 
 
 APP_LOGGER = logging.getLogger("vitamin_app")
@@ -692,8 +718,51 @@ def load_all_models(num_classes, _progress_callback=None):
             continue
 
         try:
-            mdl = load_model_compat(model_path)
-
+            # Add timeout for model loading (120 seconds max per model)
+            # This prevents hanging on memory-constrained environments
+            load_timeout = 120
+            try:
+                with time_limit(load_timeout):
+                    mdl = load_model_compat(model_path)
+            except TimeoutException:
+                elapsed = time.perf_counter() - model_start
+                error_msg = f"Model loading timeout after {load_timeout}s"
+                log_event(f"Timeout for {model_name}: {error_msg}", level="error")
+                status_row = {
+                    'model': model_name,
+                    'status': 'failed',
+                    'details': error_msg
+                }
+                load_status.append(status_row)
+                if _progress_callback:
+                    _progress_callback({
+                        'phase': 'failed',
+                        'index': idx,
+                        'total': total_models,
+                        'model': model_name,
+                        'details': error_msg
+                    })
+                continue
+            except Exception as load_error:
+                elapsed = time.perf_counter() - model_start
+                tb = traceback.format_exc(limit=6)
+                log_event(f"Failed model={model_name} elapsed={elapsed:.2f}s error={load_error}", level="error")
+                log_event(tb, level="error")
+                status_row = {
+                    'model': model_name,
+                    'status': 'failed',
+                    'details': f"{load_error}\n{tb}"
+                }
+                load_status.append(status_row)
+                if _progress_callback:
+                    _progress_callback({
+                        'phase': 'failed',
+                        'index': idx,
+                        'total': total_models,
+                        'model': model_name,
+                        'details': str(load_error)
+                    })
+                continue
             output_shape = mdl.output_shape
             if isinstance(output_shape, list):
                 output_shape = output_shape[0]
@@ -738,6 +807,9 @@ def load_all_models(num_classes, _progress_callback=None):
                         'model': model_name,
                         'details': status_row['details']
                     })
+                
+                # Force garbage collection after each successful model load
+                gc.collect()
         except Exception as e:
             elapsed = time.perf_counter() - model_start
             tb = traceback.format_exc(limit=6)
@@ -768,6 +840,9 @@ def load_all_models(num_classes, _progress_callback=None):
             'issues': len(load_status) - len(available_models),
             'message': 'Model loading completed.'
         })
+    
+    # Final garbage collection
+    gc.collect()
 
     return models, available_models, load_status
 
