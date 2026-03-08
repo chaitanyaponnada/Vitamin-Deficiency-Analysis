@@ -14,6 +14,7 @@ import traceback
 from pathlib import Path
 import gc
 import signal
+import threading
 from contextlib import contextmanager
 
 import streamlit as st
@@ -34,12 +35,17 @@ class TimeoutException(Exception):
 
 @contextmanager
 def time_limit(seconds):
-    """Context manager to limit execution time (Unix-like systems)."""
+    """Context manager to limit execution time when signal alarms are supported."""
     def signal_handler(signum, frame):
         raise TimeoutException("Timed out")
-    
-    # Only set alarm on Unix systems
-    if hasattr(signal, 'SIGALRM'):
+
+    # signal.signal/signal.alarm only work in the main interpreter thread.
+    supports_alarm = (
+        hasattr(signal, 'SIGALRM')
+        and threading.current_thread() is threading.main_thread()
+    )
+
+    if supports_alarm:
         signal.signal(signal.SIGALRM, signal_handler)
         signal.alarm(seconds)
         try:
@@ -47,7 +53,7 @@ def time_limit(seconds):
         finally:
             signal.alarm(0)
     else:
-        # On Windows, just yield without timeout
+        # Streamlit often runs user code in a worker thread; avoid signal usage there.
         yield
 
 
