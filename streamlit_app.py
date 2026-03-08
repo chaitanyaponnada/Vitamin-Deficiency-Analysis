@@ -92,16 +92,6 @@ class CompatBatchNormalization(keras.layers.BatchNormalization):
         return super().from_config(cfg)
 
 
-COMPAT_CUSTOM_OBJECTS = {
-    'CustomScaleLayer': CustomScaleLayer,
-    'Scale': CustomScaleLayer,
-    'Dense': CompatDense,
-    'Conv2D': CompatConv2D,
-    'DepthwiseConv2D': CompatDepthwiseConv2D,
-    'SeparableConv2D': CompatSeparableConv2D,
-    'BatchNormalization': CompatBatchNormalization,
-}
-
 # Page configuration
 st.set_page_config(
     page_title="Vitamin Deficiency AI",
@@ -438,6 +428,17 @@ class CustomScaleLayer(keras.layers.Layer):
             'gamma_init': keras.initializers.serialize(self.gamma_init),
         })
         return config
+
+
+COMPAT_CUSTOM_OBJECTS = {
+    'CustomScaleLayer': CustomScaleLayer,
+    'Scale': CustomScaleLayer,
+    'Dense': CompatDense,
+    'Conv2D': CompatConv2D,
+    'DepthwiseConv2D': CompatDepthwiseConv2D,
+    'SeparableConv2D': CompatSeparableConv2D,
+    'BatchNormalization': CompatBatchNormalization,
+}
 
 
 def load_model_compat(model_path):
