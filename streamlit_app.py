@@ -1,6 +1,8 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+# Force CPU runtime on platforms like Render to avoid CUDA init overhead/noise.
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -175,11 +177,28 @@ st.markdown("""
     }
 
     .center-loader-wrap {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 14px 0 10px 0;
-        min-height: 130px;
+        background: rgba(255, 255, 255, 0.32);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    .center-loader-card {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 220px;
+        padding: 20px 22px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.66);
+        border: 1px solid rgba(15, 23, 42, 0.16);
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
     }
 
     .center-loader {
@@ -255,6 +274,18 @@ MODEL_MAPPING = {
     'VGG16': 'VGG16.h5',
     'Xception': 'Xception.h5'
 }
+
+HEAVY_MODELS = {'EfficientNetV2L', 'InceptionResNetV2'}
+IS_RENDER = any([
+    os.getenv('RENDER', '').lower() == 'true',
+    bool(os.getenv('RENDER_SERVICE_ID')),
+    bool(os.getenv('RENDER_INSTANCE_ID')),
+])
+LIGHTWEIGHT_MODE = os.getenv('LIGHTWEIGHT_MODE', '1' if IS_RENDER else '0') == '1'
+ACTIVE_MODEL_NAMES = [
+    name for name in MODEL_MAPPING.keys()
+    if (not LIGHTWEIGHT_MODE) or (name not in HEAVY_MODELS)
+]
 
 
 @keras.utils.register_keras_serializable(package='Custom')
@@ -449,10 +480,9 @@ def load_all_models(num_classes):
     available_models = []
     load_status = []
 
-    progress_bar = st.progress(0)
-    status_text = st.empty()
+    selected_mapping = {k: MODEL_MAPPING[k] for k in ACTIVE_MODEL_NAMES if k in MODEL_MAPPING}
 
-    for idx, (model_name, model_file) in enumerate(MODEL_MAPPING.items()):
+    for model_name, model_file in selected_mapping.items():
         model_path = MODEL_DIR / model_file
         if not model_path.exists():
             load_status.append({
@@ -460,11 +490,9 @@ def load_all_models(num_classes):
                 'status': 'missing',
                 'details': f'Model file not found: {model_file}'
             })
-            progress_bar.progress((idx + 1) / len(MODEL_MAPPING))
             continue
 
         try:
-            status_text.text(f"Loading {model_name}...")
             mdl = load_model_compat(model_path)
 
             output_shape = mdl.output_shape
@@ -492,11 +520,6 @@ def load_all_models(num_classes):
                 'status': 'failed',
                 'details': str(e)
             })
-
-        progress_bar.progress((idx + 1) / len(MODEL_MAPPING))
-    
-    progress_bar.empty()
-    status_text.empty()
 
     return models, available_models, load_status
 
@@ -720,7 +743,7 @@ def show_center_loader(message):
     placeholder.markdown(
         f"""
         <div class="center-loader-wrap">
-            <div>
+            <div class="center-loader-card">
                 <div class="center-loader"></div>
                 <div class="center-loader-text">{message}</div>
             </div>
@@ -767,6 +790,16 @@ def main():
                 .center-loader {
                     border-color: rgba(248, 250, 252, 0.24);
                     border-top-color: #ffffff;
+                }
+
+                .center-loader-wrap {
+                    background: rgba(2, 6, 23, 0.38);
+                }
+
+                .center-loader-card {
+                    background: rgba(2, 6, 23, 0.66);
+                    border-color: rgba(255,255,255,0.30);
+                    box-shadow: 0 18px 36px rgba(2, 6, 23, 0.55);
                 }
 
                 .stButton > button {
