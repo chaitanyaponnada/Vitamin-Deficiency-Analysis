@@ -461,10 +461,13 @@ ACTIVE_MODEL_NAMES = [
 ]
 
 try:
-    _default_max_model_mb = '70' if (IS_RENDER or IS_STREAMLIT_CLOUD) else '0'
+    _default_max_model_mb = '40' if (IS_RENDER or IS_STREAMLIT_CLOUD) else '0'
     MAX_MODEL_FILE_MB = float(get_runtime_setting('MAX_MODEL_FILE_MB', _default_max_model_mb))
 except Exception:
     MAX_MODEL_FILE_MB = 0.0
+
+# Minimum models needed for inference (1 = allow any single model)
+MIN_MODELS_FOR_INFERENCE = 1
 
 
 @keras.utils.register_keras_serializable(package='Custom')
@@ -695,8 +698,18 @@ def load_all_models(num_classes, _progress_callback=None):
     else:
         log_event("Model dir listing: <empty or unreadable>", level="warning")
 
-    total_models = len(selected_mapping)
-    for idx, (model_name, model_file) in enumerate(selected_mapping.items(), start=1):
+    # Sort models by file size (smallest first) to maximize successful loads on low-memory hosts
+    def get_model_size(item):
+        model_name, model_file = item
+        try:
+            model_path = resolve_model_file(model_file)
+            return model_path.stat().st_size if model_path.exists() else float('inf')
+        except Exception:
+            return float('inf')
+    
+    sorted_mapping = sorted(selected_mapping.items(), key=get_model_size)
+    total_models = len(sorted_mapping)
+    for idx, (model_name, model_file) in enumerate(sorted_mapping, start=1):
         model_start = time.perf_counter()
         model_path = resolve_model_file(model_file)
         log_event(f"Loading model={model_name} file={model_file} resolved_path={model_path}")
@@ -849,6 +862,14 @@ def load_all_models(num_classes, _progress_callback=None):
                 
                 # Force garbage collection after each successful model load
                 gc.collect()
+                # On memory-constrained environments, clear TF session state
+                if IS_RENDER or IS_STREAMLIT_CLOUD:
+                    try:
+                        import keras.backend as K
+                        K.clear_session()
+                    except Exception:
+                        pass
+                    gc.collect()
         except Exception as e:
             elapsed = time.perf_counter() - model_start
             tb = traceback.format_exc(limit=6)
@@ -877,11 +898,17 @@ def load_all_models(num_classes, _progress_callback=None):
             'total': total_models,
             'loaded': len(available_models),
             'issues': len(load_status) - len(available_models),
-            'message': 'Model loading completed.'
+            'message': f'Model loading completed. {len(available_models)} model(s) ready.'
         })
     
     # Final garbage collection
     gc.collect()
+    if IS_RENDER or IS_STREAMLIT_CLOUD:
+        try:
+            import keras.backend as K
+            K.clear_session()
+        except Exception:
+            pass
 
     return models, available_models, load_status
 
@@ -1309,8 +1336,14 @@ def main():
 
     # Load models at startup with animation once per session; reuse cache afterwards.
     if not st.session_state.get('startup_models_initialized', False):
-        models, available_models, load_status = load_models_with_live_ui(len(classes))
-        st.session_state['startup_models_initialized'] = True
+        try:
+            models, available_models, load_status = load_models_with_live_ui(len(classes))
+            st.session_state['startup_models_initialized'] = True
+        except Exception as e:
+            st.error(f"Error during model loading: {e}")
+            # Fall back to loading without UI (may return partial results)
+            models, available_models, load_status = load_all_models(len(classes))
+            st.session_state['startup_models_initialized'] = True
     else:
         models, available_models, load_status = load_all_models(len(classes))
 
@@ -1334,7 +1367,10 @@ def main():
         c1.metric("Loaded Models", f"{loaded_count}")
         c2.metric("Detected Classes", f"{len(classes)}")
         c3.metric("Model Issues", f"{issue_count}")
-        st.caption("Models are preloaded once at server startup and reused for all analyses.")
+        if loaded_count < 3:
+            st.caption(f"⚠️ Running in low-memory mode with {loaded_count} model(s). Predictions available but with reduced ensemble accuracy.")
+        else:
+            st.caption("Models are preloaded once at server startup and reused for all analyses.")
 
         uploaded_file = st.file_uploader(
             "Select image",
@@ -1366,12 +1402,14 @@ def main():
                     st.markdown('</div>', unsafe_allow_html=True)
                     return
 
-                if not available_models:
-                    st.error("No models are available for inference. Check diagnostics and logs.")
+                if len(available_models) < MIN_MODELS_FOR_INFERENCE:
+                    st.error(f"Insufficient models loaded ({len(available_models)}/{MIN_MODELS_FOR_INFERENCE} minimum required). Check diagnostics and logs.")
                     if load_status:
                         st.dataframe(pd.DataFrame(load_status), width='stretch', hide_index=True)
                     st.markdown('</div>', unsafe_allow_html=True)
                     return
+                elif len(available_models) < 3:
+                    st.warning(f"Running with limited models ({len(available_models)}). Results may be less accurate than with full ensemble.")
 
                 try:
                     infer_ui = show_center_loader("Analyzing image")
