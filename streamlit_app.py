@@ -1180,7 +1180,8 @@ def main():
                         pct = int(frac * 100)
 
                         model = event.get('model', '')
-                        details = str(event.get('details', '') or '').splitlines()[0]
+                        details_lines = str(event.get('details', '') or '').splitlines()
+                        details = details_lines[0] if details_lines else ''
 
                         if phase == 'init':
                             model_load_note.info("Initializing model loading...")
@@ -1226,11 +1227,12 @@ def main():
                         # Cache hit path: populate table even when per-model callbacks were not replayed.
                         fallback_rows = []
                         for i, row in enumerate(load_status, start=1):
+                            details_lines = str(row.get('details', '')).splitlines()
                             fallback_rows.append({
                                 'step': i,
                                 'model': row.get('model', ''),
                                 'status': row.get('status', ''),
-                                'details': str(row.get('details', '')).splitlines()[0],
+                                'details': details_lines[0] if details_lines else '',
                             })
                         model_load_table.dataframe(pd.DataFrame(fallback_rows), width='stretch', hide_index=True)
                         model_load_note.info("Models were retrieved from cache. Showing latest known status table.")
