@@ -42,7 +42,65 @@ def log_event(message, level="info"):
         APP_LOGGER.warning(msg)
     else:
         APP_LOGGER.info(msg)
-    print(msg, flush=True)
+
+
+@keras.utils.register_keras_serializable(package='Custom', name='Dense')
+class CompatDense(keras.layers.Dense):
+    """Backwards-compatible Dense that tolerates legacy serialization fields."""
+
+    @classmethod
+    def from_config(cls, config):
+        cfg = dict(config or {})
+        # Keras 3 may reject legacy/no-op quantization metadata found in old H5 files.
+        cfg.pop('quantization_config', None)
+        return super().from_config(cfg)
+
+
+@keras.utils.register_keras_serializable(package='Custom', name='Conv2D')
+class CompatConv2D(keras.layers.Conv2D):
+    @classmethod
+    def from_config(cls, config):
+        cfg = dict(config or {})
+        cfg.pop('quantization_config', None)
+        return super().from_config(cfg)
+
+
+@keras.utils.register_keras_serializable(package='Custom', name='DepthwiseConv2D')
+class CompatDepthwiseConv2D(keras.layers.DepthwiseConv2D):
+    @classmethod
+    def from_config(cls, config):
+        cfg = dict(config or {})
+        cfg.pop('quantization_config', None)
+        return super().from_config(cfg)
+
+
+@keras.utils.register_keras_serializable(package='Custom', name='SeparableConv2D')
+class CompatSeparableConv2D(keras.layers.SeparableConv2D):
+    @classmethod
+    def from_config(cls, config):
+        cfg = dict(config or {})
+        cfg.pop('quantization_config', None)
+        return super().from_config(cfg)
+
+
+@keras.utils.register_keras_serializable(package='Custom', name='BatchNormalization')
+class CompatBatchNormalization(keras.layers.BatchNormalization):
+    @classmethod
+    def from_config(cls, config):
+        cfg = dict(config or {})
+        cfg.pop('quantization_config', None)
+        return super().from_config(cfg)
+
+
+COMPAT_CUSTOM_OBJECTS = {
+    'CustomScaleLayer': CustomScaleLayer,
+    'Scale': CustomScaleLayer,
+    'Dense': CompatDense,
+    'Conv2D': CompatConv2D,
+    'DepthwiseConv2D': CompatDepthwiseConv2D,
+    'SeparableConv2D': CompatSeparableConv2D,
+    'BatchNormalization': CompatBatchNormalization,
+}
 
 # Page configuration
 st.set_page_config(
@@ -387,12 +445,11 @@ def load_model_compat(model_path):
     try:
         return load_model(str(model_path), compile=False)
     except Exception as e:
-        if 'Unknown layer' in str(e):
-            custom_objects = {
-                'CustomScaleLayer': CustomScaleLayer,
-                'Scale': CustomScaleLayer,
-            }
-            return load_model(str(model_path), compile=False, custom_objects=custom_objects)
+        err_text = str(e)
+        if 'Unknown layer' in err_text:
+            return load_model(str(model_path), compile=False, custom_objects=COMPAT_CUSTOM_OBJECTS)
+        if 'quantization_config' in err_text or "deserializing class 'Dense'" in err_text:
+            return load_model(str(model_path), compile=False, custom_objects=COMPAT_CUSTOM_OBJECTS)
         raise
 
 # Vitamin deficiency information
