@@ -330,8 +330,36 @@ st.markdown("""
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
-# In Render Docker runtime files are under /app. Keep model path explicit.
-MODEL_DIR = Path('/app/model_saved_files') if Path('/app').exists() else (BASE_DIR / 'model_saved_files')
+
+
+def resolve_model_dir():
+    """Resolve model folder across local, Render native, and Docker runtimes."""
+    env_model_dir = os.getenv('MODEL_DIR', '').strip()
+    candidates = []
+
+    if env_model_dir:
+        candidates.append(Path(env_model_dir))
+
+    # Project-local path should be first because it is valid for local runs and many deploys.
+    candidates.extend([
+        BASE_DIR / 'model_saved_files',
+        Path('/opt/render/project/src/model_saved_files'),
+        Path('/app/model_saved_files'),
+    ])
+
+    for candidate in candidates:
+        try:
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+        except Exception:
+            # Continue scanning fallback paths if any candidate cannot be inspected.
+            continue
+
+    # Fall back to project-local expected location for better error messaging.
+    return BASE_DIR / 'model_saved_files'
+
+
+MODEL_DIR = resolve_model_dir()
 DATA_DIR = BASE_DIR / 'dataset' / 'train'
 IMG_HEIGHT, IMG_WIDTH = 128, 128
 ENSEMBLE_METHOD = 'soft_voting'
@@ -1256,12 +1284,19 @@ Medical disclaimer: This tool is for informational purposes only and is not a su
 if __name__ == "__main__":
     try:
         log_event("Streamlit script execution started.")
+        candidate_dirs = [
+            os.getenv('MODEL_DIR', '').strip() or '<env-not-set>',
+            str(BASE_DIR / 'model_saved_files'),
+            '/opt/render/project/src/model_saved_files',
+            '/app/model_saved_files',
+        ]
         log_event(
             f"Environment snapshot: RENDER={os.getenv('RENDER', '')} "
             f"RENDER_SERVICE_ID={'set' if os.getenv('RENDER_SERVICE_ID') else 'unset'} "
             f"LIGHTWEIGHT_MODE_ENV={os.getenv('LIGHTWEIGHT_MODE', '<not-set>')} "
             f"LIGHTWEIGHT_MODE_RESOLVED={LIGHTWEIGHT_MODE} "
-            f"BASE_DIR={BASE_DIR} MODEL_DIR={MODEL_DIR}"
+            f"BASE_DIR={BASE_DIR} MODEL_DIR={MODEL_DIR} "
+            f"MODEL_DIR_CANDIDATES={candidate_dirs}"
         )
         main()
     except Exception as exc:
