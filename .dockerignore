@@ -1,7 +1,12 @@
 .venv/
 __pycache__/
 *.pyc
+.git/
 .gitignore
+.gitattributes
+model_saved_files/
 models/
 papers and info/
 *.ipynb
+dataset/
+images/

@@ -5,39 +5,32 @@ ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV MODEL_DIR=/app/model_saved_files
 
-# Install Git and Git LFS for pulling model files
+# Install curl for downloading model files from GitHub Release
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git git-lfs && \
-    git lfs install && \
+    apt-get install -y --no-install-recommends curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy repo files first (this gets LFS pointer files initially)
-COPY . .
+# Copy application files (excluding model files - they'll be downloaded)
+COPY requirements.txt ./
+COPY streamlit_app.py ./
+COPY .streamlit ./.streamlit
+COPY download_models.sh ./
 
 # Install Python dependencies
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Pull actual LFS files (replaces pointers with real model files)
-RUN cd /app && \
-    if [ -d .git ]; then \
-        echo "Git repo detected, pulling LFS files..." && \
-        git lfs pull && \
-        echo "LFS pull completed"; \
-    else \
-        echo "No .git directory, skipping LFS pull"; \
-    fi
+# Download model files from GitHub Release
+RUN chmod +x download_models.sh && \
+    ./download_models.sh
 
 # Verify model files are present and show their sizes
-RUN echo "Model directory contents:" && \
-    ls -lh /app/model_saved_files/*.h5 2>/dev/null || echo "Warning: No .h5 files found" && \
-    echo "Total model directory size:" && \
-    du -sh /app/model_saved_files 2>/dev/null || true
-
-# Optional: Remove .git to reduce image size after LFS pull
-RUN rm -rf /app/.git
+RUN echo "=== Model Verification ===" && \
+    ls -lh /app/model_saved_files/*.h5 && \
+    echo "Total size:" && \
+    du -sh /app/model_saved_files
 
 EXPOSE 8501
 
