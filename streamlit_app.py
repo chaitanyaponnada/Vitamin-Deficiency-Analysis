@@ -343,6 +343,13 @@ def resolve_model_file(model_file):
     if primary.exists() and primary.is_file():
         return primary
 
+    # Handle case differences safely while still restricting search to model_saved_files.
+    model_file_lower = model_file.lower()
+    if MODEL_DIR.exists() and MODEL_DIR.is_dir():
+        for candidate in MODEL_DIR.iterdir():
+            if candidate.is_file() and candidate.name.lower() == model_file_lower:
+                return candidate
+
     return primary
 
 
