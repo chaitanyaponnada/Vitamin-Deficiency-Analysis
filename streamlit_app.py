@@ -398,7 +398,12 @@ IS_RENDER = any([
     bool(os.getenv('RENDER_SERVICE_ID')),
     bool(os.getenv('RENDER_INSTANCE_ID')),
 ])
-LIGHTWEIGHT_MODE = os.getenv('LIGHTWEIGHT_MODE', '1' if IS_RENDER else '0') == '1'
+IS_STREAMLIT_CLOUD = any([
+    os.getenv('STREAMLIT_SHARING_MODE', '').lower() == 'streamlit',
+    bool(os.getenv('STREAMLIT_RUNTIME')),
+    bool(os.getenv('STREAMLIT_SERVER_PORT')),
+])
+LIGHTWEIGHT_MODE = os.getenv('LIGHTWEIGHT_MODE', '1' if (IS_RENDER or IS_STREAMLIT_CLOUD) else '0') == '1'
 ACTIVE_MODEL_NAMES = [
     name for name in MODEL_MAPPING.keys()
     if (not LIGHTWEIGHT_MODE) or (name not in HEAVY_MODELS)
@@ -1017,7 +1022,7 @@ def main():
     metadata = load_ensemble_metadata()
     classes = metadata.get('class_names', dataset_classes)
 
-    # Do not load models on page open; load on demand to prevent Render gateway timeouts.
+    # Do not load models on page open; load on demand to keep startup responsive.
     models = {}
     available_models = []
     load_status = st.session_state.get('load_status', [])
@@ -1043,7 +1048,7 @@ def main():
         c1.metric("Loaded Models", f"{loaded_count}")
         c2.metric("Detected Classes", f"{len(classes)}")
         c3.metric("Model Issues", f"{issue_count}")
-        st.caption("Models load when you click Run Analysis to keep startup fast on Render.")
+        st.caption("Models load when you click Run Analysis to keep startup fast on Streamlit Cloud and Render.")
 
         uploaded_file = st.file_uploader(
             "Select image",
@@ -1293,6 +1298,8 @@ if __name__ == "__main__":
         log_event(
             f"Environment snapshot: RENDER={os.getenv('RENDER', '')} "
             f"RENDER_SERVICE_ID={'set' if os.getenv('RENDER_SERVICE_ID') else 'unset'} "
+            f"STREAMLIT_SHARING_MODE={os.getenv('STREAMLIT_SHARING_MODE', '')} "
+            f"IS_STREAMLIT_CLOUD={IS_STREAMLIT_CLOUD} "
             f"LIGHTWEIGHT_MODE_ENV={os.getenv('LIGHTWEIGHT_MODE', '<not-set>')} "
             f"LIGHTWEIGHT_MODE_RESOLVED={LIGHTWEIGHT_MODE} "
             f"BASE_DIR={BASE_DIR} MODEL_DIR={MODEL_DIR} "

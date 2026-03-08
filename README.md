@@ -1,5 +1,29 @@
 # vitamin-deficiency
 
+## Deploy On Streamlit Community Cloud
+1. Push this project to GitHub (including `streamlit_app.py`, `requirements.txt`, `runtime.txt`, and `model_saved_files/`).
+2. Open `https://share.streamlit.io` and sign in with GitHub.
+3. Click `New app`.
+4. Fill the deployment form:
+	- Repository: your GitHub repo (for example `username/vitamin-deficiency-main`)
+	- Branch: `main`
+	- Main file path: `streamlit_app.py`
+	- Python version: leave default (the app also includes `runtime.txt` with Python 3.11)
+5. Open `Advanced settings` and add environment variables:
+	- `LIGHTWEIGHT_MODE=1`
+	- Optional: `MODEL_DIR=/mount/src/model_saved_files` (only if model path is not detected automatically)
+6. Click `Deploy`.
+7. After deployment opens, upload an image and click `Run Analysis`.
+8. If you see model errors, open `Manage app` -> `Logs` and verify startup lines show:
+	- `IS_STREAMLIT_CLOUD=True`
+	- `MODEL_DIR=.../model_saved_files`
+	- `Model dir listing: ... .h5 files ...`
+
+### Notes For Large Models
+- Streamlit Cloud has limited CPU/RAM; this app defaults to lightweight mode on Streamlit Cloud.
+- In lightweight mode, very heavy models are skipped to improve reliability.
+- To force all models (not recommended on free tier), set `LIGHTWEIGHT_MODE=0`.
+
 ## Project Overview
 This project focuses on developing and comparing multiple deep learning models to detect vitamin deficiencies from images of specific body parts (e.g., lips, tongue, eyes, nails). The models were created to offer a non-invasive, AI-powered diagnostic tool that can analyze visual indicators associated with vitamin deficiencies. The aim is to provide an accessible solution to detect deficiencies using a smartphone app, without requiring costly lab tests.
 
