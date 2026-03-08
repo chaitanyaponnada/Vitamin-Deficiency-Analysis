@@ -44,6 +44,22 @@ def log_event(message, level="info"):
         APP_LOGGER.info(msg)
 
 
+def get_runtime_setting(name, default=""):
+    """Read config from env first, then Streamlit secrets as fallback."""
+    env_val = os.getenv(name)
+    if env_val not in (None, ""):
+        return str(env_val)
+
+    try:
+        secret_val = st.secrets.get(name, "")
+        if secret_val not in (None, ""):
+            return str(secret_val)
+    except Exception:
+        pass
+
+    return str(default)
+
+
 @keras.utils.register_keras_serializable(package='Custom', name='Dense')
 class CompatDense(keras.layers.Dense):
     """Backwards-compatible Dense that tolerates legacy serialization fields."""
@@ -334,7 +350,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def resolve_model_dir():
     """Resolve model folder across local, Render native, and Docker runtimes."""
-    env_model_dir = os.getenv('MODEL_DIR', '').strip()
+    env_model_dir = get_runtime_setting('MODEL_DIR', '').strip()
     candidates = []
 
     if env_model_dir:
@@ -403,7 +419,10 @@ IS_STREAMLIT_CLOUD = any([
     bool(os.getenv('STREAMLIT_RUNTIME')),
     bool(os.getenv('STREAMLIT_SERVER_PORT')),
 ])
-LIGHTWEIGHT_MODE = os.getenv('LIGHTWEIGHT_MODE', '1' if (IS_RENDER or IS_STREAMLIT_CLOUD) else '0') == '1'
+LIGHTWEIGHT_MODE = get_runtime_setting(
+    'LIGHTWEIGHT_MODE',
+    '1' if (IS_RENDER or IS_STREAMLIT_CLOUD) else '0'
+) == '1'
 ACTIVE_MODEL_NAMES = [
     name for name in MODEL_MAPPING.keys()
     if (not LIGHTWEIGHT_MODE) or (name not in HEAVY_MODELS)
@@ -1290,7 +1309,7 @@ if __name__ == "__main__":
     try:
         log_event("Streamlit script execution started.")
         candidate_dirs = [
-            os.getenv('MODEL_DIR', '').strip() or '<env-not-set>',
+            get_runtime_setting('MODEL_DIR', '').strip() or '<not-set>',
             str(BASE_DIR / 'model_saved_files'),
             '/opt/render/project/src/model_saved_files',
             '/app/model_saved_files',
@@ -1300,7 +1319,7 @@ if __name__ == "__main__":
             f"RENDER_SERVICE_ID={'set' if os.getenv('RENDER_SERVICE_ID') else 'unset'} "
             f"STREAMLIT_SHARING_MODE={os.getenv('STREAMLIT_SHARING_MODE', '')} "
             f"IS_STREAMLIT_CLOUD={IS_STREAMLIT_CLOUD} "
-            f"LIGHTWEIGHT_MODE_ENV={os.getenv('LIGHTWEIGHT_MODE', '<not-set>')} "
+            f"LIGHTWEIGHT_MODE_RUNTIME={get_runtime_setting('LIGHTWEIGHT_MODE', '<not-set>')} "
             f"LIGHTWEIGHT_MODE_RESOLVED={LIGHTWEIGHT_MODE} "
             f"BASE_DIR={BASE_DIR} MODEL_DIR={MODEL_DIR} "
             f"MODEL_DIR_CANDIDATES={candidate_dirs}"
