@@ -9,7 +9,10 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
+COPY model_saved_files ./model_saved_files
 COPY . .
+
+RUN test -d /app/model_saved_files && test -f /app/model_saved_files/Cnn.h5
 
 EXPOSE 8501
 

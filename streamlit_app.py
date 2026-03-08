@@ -330,53 +330,18 @@ st.markdown("""
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
-
-
-def resolve_model_dir(base_dir):
-    """Resolve model directory across local and container environments."""
-    candidates = [
-        base_dir / 'model_saved_files',
-        Path.cwd() / 'model_saved_files',
-        Path('/app/model_saved_files'),
-        Path('/opt/render/project/src/model_saved_files'),
-    ]
-
-    for candidate in candidates:
-        if candidate.exists() and candidate.is_dir():
-            return candidate
-
-    return base_dir / 'model_saved_files'
-
-
-MODEL_DIR = resolve_model_dir(BASE_DIR)
+# In Render Docker runtime files are under /app. Keep model path explicit.
+MODEL_DIR = Path('/app/model_saved_files') if Path('/app').exists() else (BASE_DIR / 'model_saved_files')
 DATA_DIR = BASE_DIR / 'dataset' / 'train'
 IMG_HEIGHT, IMG_WIDTH = 128, 128
 ENSEMBLE_METHOD = 'soft_voting'
 
 
 def resolve_model_file(model_file):
-    """Find model file in expected and fallback locations."""
+    """Resolve model file from the model_saved_files folder only."""
     primary = MODEL_DIR / model_file
     if primary.exists() and primary.is_file():
         return primary
-
-    fallback_dirs = [
-        MODEL_DIR,
-        BASE_DIR / 'model_saved_files',
-        BASE_DIR / 'images' / 'others',
-        Path('/app/model_saved_files'),
-        Path('/app/images/others'),
-        Path('/opt/render/project/src/model_saved_files'),
-        Path('/opt/render/project/src/images/others'),
-    ]
-
-    model_file_lower = model_file.lower()
-    for folder in fallback_dirs:
-        if not folder.exists() or not folder.is_dir():
-            continue
-        for candidate in folder.iterdir():
-            if candidate.is_file() and candidate.name.lower() == model_file_lower:
-                return candidate
 
     return primary
 
@@ -622,6 +587,8 @@ def load_all_models(num_classes):
     )
     if model_dir_listing:
         log_event(f"Model dir listing: {', '.join(model_dir_listing)}")
+    else:
+        log_event("Model dir listing: <empty or unreadable>", level="warning")
 
     for model_name, model_file in selected_mapping.items():
         model_start = time.perf_counter()
@@ -632,7 +599,7 @@ def load_all_models(num_classes):
             load_status.append({
                 'model': model_name,
                 'status': 'missing',
-                'details': f'Model file not found: {model_file} (resolved: {model_path})'
+                'details': f'Model file not found: {model_file} (resolved: {model_path}). Required folder: {MODEL_DIR}'
             })
             continue
 
