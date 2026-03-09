@@ -1,7 +1,7 @@
 import os
 # Load environment variables from .env file (for local development)
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
     load_dotenv()
 except ImportError:
     pass  # python-dotenv not installed, ok for production
@@ -41,7 +41,7 @@ from auth_ui_modern import show_authentication_gateway
 from ui_components import (
     inject_global_styles, render_header, render_profile_dropdown,
     render_loading_animation, render_page_header, render_stat_card,
-    get_current_date_display
+    get_current_date_display, show_error_modal
 )
 
 
@@ -165,232 +165,7 @@ st.set_page_config(
 
 THEME_BASE = (st.get_option("theme.base") or "light").lower()
 IS_DARK_THEME = THEME_BASE == "dark"
-
-# Custom CSS for professional styling
-st.markdown("""
-<style>
-    html, body, [data-testid="stAppViewContainer"], .stApp {
-        background: transparent !important;
-    }
-
-    [data-testid="stHeader"],
-    [data-testid="stToolbar"],
-    [data-testid="stSidebar"] {
-        background: transparent !important;
-    }
-
-    [data-testid="stAppViewContainer"] > .main,
-    [data-testid="stAppViewContainer"] .block-container {
-        position: relative;
-        z-index: 2;
-    }
-
-    .video-bg-wrap {
-        position: fixed;
-        inset: 0;
-        overflow: hidden;
-        z-index: 0;
-        pointer-events: none;
-    }
-
-    .video-bg-wrap video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        filter: none;
-    }
-
-    .video-bg-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 1;
-        pointer-events: none;
-        background: rgba(245, 247, 250, 0.16);
-    }
-
-    .block-container {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding-top: 0.4rem;
-        padding-bottom: 0.6rem;
-    }
-
-    .main-shell {
-        background: transparent;
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-        padding: 8px 4px 2px 4px;
-        margin-top: 0;
-        animation: fadeInUp 700ms ease-out;
-        text-align: center;
-    }
-
-    .top-title {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #0f172a;
-        margin: 0;
-        letter-spacing: 0.2px;
-        text-shadow: 0 1px 1px rgba(255,255,255,0.35);
-    }
-
-    .top-subtitle {
-        margin-top: 6px;
-        color: #1f2937;
-        font-size: 1.02rem;
-        font-weight: 500;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .center-wrap {
-        background: rgba(255, 255, 255, 0.18);
-        border: 1px solid rgba(15, 23, 42, 0.10);
-        border-radius: 14px;
-        padding: 14px;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        animation: fadeInUp 550ms ease-out;
-    }
-
-    .section-title {
-        color: #0f172a;
-        font-size: 1.12rem;
-        font-weight: 700;
-        margin: 0 0 6px 0;
-    }
-
-    .result-note {
-        color: #1f2937;
-        font-size: 0.92rem;
-        line-height: 1.45;
-        margin-bottom: 8px;
-    }
-
-    .prediction-card {
-        background: rgba(255,255,255,0.50);
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 14px;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
-        padding: 14px;
-        margin: 8px 0;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        animation: fadeInUp 500ms ease-out;
-    }
-
-    .soft-info {
-        background: rgba(255,255,255,0.44);
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        border-radius: 12px;
-        padding: 10px 12px;
-        color: #0f172a;
-        font-size: 0.95rem;
-        line-height: 1.5;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-    }
-
-    .stButton>button {
-        background: #111827;
-        color: #ffffff;
-        border: 1px solid #111827;
-        border-radius: 12px;
-        padding: 10px 18px;
-        font-weight: 500;
-        font-size: 0.95rem;
-        transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease;
-    }
-
-    .stButton>button:hover {
-        transform: translateY(-1px);
-        background: #1f2937;
-        box-shadow: 0 10px 28px rgba(17, 24, 39, 0.20);
-    }
-
-    .center-loader-wrap {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: rgba(255, 255, 255, 0.32);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-    }
-
-    .center-loader-card {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-width: 220px;
-        padding: 20px 22px;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.66);
-        border: 1px solid rgba(15, 23, 42, 0.16);
-        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
-    }
-
-    .center-loader {
-        width: 52px;
-        height: 52px;
-        border: 4px solid rgba(15, 23, 42, 0.14);
-        border-top-color: #0f172a;
-        border-radius: 50%;
-        animation: spinLoader 0.9s linear infinite;
-    }
-
-    .center-loader-text {
-        margin-top: 10px;
-        text-align: center;
-        color: #0f172a;
-        font-weight: 600;
-        letter-spacing: 0.2px;
-    }
-
-    @keyframes spinLoader {
-        to { transform: rotate(360deg); }
-    }
-
-    @keyframes fadeInUp {
-        0% {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @media (max-width: 900px) {
-        .block-container {
-            padding-left: 0.7rem;
-            padding-right: 0.7rem;
-        }
-
-        .top-title {
-            font-size: 1.72rem;
-        }
-
-        .top-subtitle {
-            font-size: 0.92rem;
-        }
-
-        .center-wrap {
-            padding: 10px;
-        }
-
-        .stButton > button {
-            width: 100%;
-        }
-    }
-</style>
-""", unsafe_allow_html=True)
+# Legacy style block removed. Global styles are defined in ui_components.inject_global_styles().
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
@@ -1213,349 +988,171 @@ def load_models_with_live_ui(num_classes):
 # ==================== MAIN APP ====================
 
 def main():
-    # Inject modern UI styles
     inject_global_styles()
-    
-    # Check authentication - if not authenticated, show auth gateway
-    if 'is_authenticated' not in st.session_state:
+
+    if "is_authenticated" not in st.session_state:
         st.session_state.is_authenticated = False
-    
+    if "uploader_nonce" not in st.session_state:
+        st.session_state.uploader_nonce = 0
+    if "active_nav" not in st.session_state:
+        st.session_state.active_nav = "Dashboard"
+
     if not st.session_state.is_authenticated:
         show_authentication_gateway()
         return
-    
-    if 'uploader_nonce' not in st.session_state:
-        st.session_state.uploader_nonce = 0
-
-    if IS_DARK_THEME:
-        st.markdown(
-            """
-            <style>
-                .video-bg-overlay {
-                    background: rgba(2, 6, 23, 0.30);
-                }
-
-                .top-title,
-                .section-title,
-                .center-loader-text {
-                    color: #f8fafc;
-                    text-shadow: none;
-                }
-
-                .top-subtitle,
-                .result-note,
-                .soft-info {
-                    color: #e2e8f0;
-                }
-
-                .center-wrap,
-                .prediction-card,
-                .soft-info {
-                    border-color: rgba(255,255,255,0.25);
-                    box-shadow: 0 14px 32px rgba(2, 6, 23, 0.35);
-                }
-
-                .center-loader {
-                    border-color: rgba(248, 250, 252, 0.24);
-                    border-top-color: #ffffff;
-                }
-
-                .center-loader-wrap {
-                    background: rgba(2, 6, 23, 0.38);
-                }
-
-                .center-loader-card {
-                    background: rgba(2, 6, 23, 0.66);
-                    border-color: rgba(255,255,255,0.30);
-                    box-shadow: 0 18px 36px rgba(2, 6, 23, 0.55);
-                }
-
-                .stButton > button {
-                    background: rgba(248, 250, 252, 0.88);
-                    color: #0f172a;
-                    border-color: rgba(248, 250, 252, 0.92);
-                }
-
-                .stButton > button:hover {
-                    background: #ffffff;
-                    color: #0f172a;
-                }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    video_url = (
-        "https://res.cloudinary.com/doiceztkc/video/upload/v1772946158/3d_abstract_waves_black_background_1_ov3p5e.mp4"
-        if IS_DARK_THEME else
-        "https://res.cloudinary.com/doiceztkc/video/upload/v1769665529/2_hff2at.mp4"
-    )
-
-    st.markdown(
-        f"""
-        <div class="video-bg-wrap">
-            <video autoplay muted loop playsinline webkit-playsinline preload="auto">
-                <source src="{video_url}" type="video/mp4">
-            </video>
-        </div>
-        <div class="video-bg-overlay"></div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("""
-    <div class="main-shell">
-        <p class="top-title">Vitamin Deficiency Analysis</p>
-        <p class="top-subtitle">Clinical-style ensemble inference powered by eight deep learning models.</p>
-    </div>
-    """, unsafe_allow_html=True)
 
     dataset_classes = get_class_names()
     metadata = load_ensemble_metadata()
-    classes = metadata.get('class_names', dataset_classes)
+    classes = metadata.get("class_names", dataset_classes)
+    active_method = metadata.get("best_method", ENSEMBLE_METHOD)
+    active_weights = metadata.get("model_weights", {})
 
-    active_method = metadata.get('best_method', ENSEMBLE_METHOD)
-    active_weights = metadata.get('model_weights', {})
-
-    # LAZY LOADING: Models will be loaded only when Analysis tab is accessed for the first time
-    # This prevents unnecessary model loading during dashboard/profile/other tab interactions
     models = None
     available_models = []
-    load_status = []
-    loaded_count = 0
-    issue_count = 0
-    
-    # Check if models have been loaded previously in this session
-    if st.session_state.get('models_loaded', False):
-        # Retrieve cached models
-        models, available_models, load_status = load_all_models(len(classes))
-        status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=['model', 'status', 'details'])
-        loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
-        issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
-        st.session_state['load_status'] = load_status
+    load_status = st.session_state.get("load_status", [])
+    status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
+    loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
+    issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
 
-    # Modern header with profile menu
-    user_data = st.session_state.get('user_data', {})
+    if st.session_state.get("models_loaded", False):
+        models, available_models, load_status = load_all_models(len(classes))
+        st.session_state["load_status"] = load_status
+        status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
+        loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
+        issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
+
+    user_data = st.session_state.get("user_data", {})
     render_header(user_data)
     render_profile_dropdown(user_data)
 
-    # Handle profile routing
-    if st.session_state.get('active_tab') == 'profile':
+    if st.session_state.get("active_tab") == "profile":
         render_page_header("Profile", "Manage your account settings")
-        
-        user_data = st.session_state.get('user_data', {})
-        user_profile = get_user_profile(user_data.get('user_id', ''))
-        
+        user_profile = get_user_profile(user_data.get("user_id", ""))
         if user_profile:
             col1, col2 = st.columns([1, 3])
-            
             with col1:
-                username = user_profile.get('username', 'User')
-                initial = username[0].upper() if username else 'U'
-                st.markdown(f"""
+                initial = user_profile.get("username", "U")[0].upper()
+                st.markdown(
+                    f"""
                     <div style="
-                        width: 120px;
-                        height: 120px;
-                        border-radius: 50%;
-                        background: linear-gradient(135deg, #667eea 0%, #76 4ba2 100%);
-                        color: white;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 3rem;
-                        font-weight: 700;
-                        margin: 0 auto;
-                    ">{initial}</div>
-                """, unsafe_allow_html=True)
-            
+                        width:96px;height:96px;border-radius:999px;background:#18181F;
+                        border:1px solid #242430;color:#FFFFFF;display:flex;align-items:center;
+                        justify-content:center;font-size:2.2rem;font-weight:700;">{initial}</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
             with col2:
-                st.markdown("### Account Information")
                 st.write(f"**Full Name:** {user_profile.get('full_name', 'N/A')}")
                 st.write(f"**Username:** @{user_profile.get('username', 'N/A')}")
                 st.write(f"**Email:** {user_profile.get('email', 'N/A')}")
                 st.write(f"**Member Since:** {user_profile.get('created_at', 'N/A')[:10]}")
-                
-                analysis_count = len(get_analysis_history(user_data.get('user_id', '')))
-                st.write(f"**Total Analyses:** {analysis_count}")
-        
-        if st.button("← Back to Dashboard", type="secondary"):
+                st.write(f"**Total Analyses:** {len(get_analysis_history(user_data.get('user_id', '')))}")
+        if st.button("Back to Dashboard", key="profile_back"):
             st.session_state.active_tab = None
+            st.session_state.active_nav = "Dashboard"
             st.rerun()
-        st.stop()
+        return
 
-    # Check if we should switch to Analysis tab (from Dashboard button)
-    if st.session_state.get('switch_to_analysis', False):
+    if st.session_state.get("switch_to_analysis", False):
+        st.session_state.active_nav = "Analysis"
         st.session_state.switch_to_analysis = False
-        # Force tab to Analysis (this will be handled by tab index)
-    
-    nav_dashboard, nav_analysis, nav_history, nav_performance, nav_status, nav_about = st.tabs([
-        "Dashboard", "Analysis", "History", "Model Performance", "Model Status", "About"
-    ])
 
-    with nav_dashboard:
-        # Modern Dashboard with animations and date display
-        user_data = st.session_state.get('user_data', {})
-        user_id = user_data.get('user_id', '')
+    nav_options = ["Dashboard", "Analysis", "History", "Model Performance", "Model Status", "About"]
+    if st.session_state.active_nav not in nav_options:
+        st.session_state.active_nav = "Dashboard"
+
+    st.markdown('<div class="nav-wrap">', unsafe_allow_html=True)
+    st.radio("Navigation", nav_options, horizontal=True, key="active_nav", label_visibility="collapsed")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    current_nav = st.session_state.active_nav
+
+    if current_nav == "Dashboard":
+        user_id = user_data.get("user_id", "")
         user_profile = get_user_profile(user_id)
         analysis_history = get_analysis_history(user_id)
-        
         if user_profile:
-            # Get current date
             current_date, current_day = get_current_date_display()
-            
-            # Welcome section with animation
-            full_name = user_profile.get('full_name', 'User')
-            st.markdown(f"""
-                <div class="welcome-section">
-                    <h1 class="page-title">Welcome back, {full_name}</h1>
-                    <p class="page-subtitle">{current_day}, {current_date}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # Statistics Cards
-            st.markdown("<br>", unsafe_allow_html=True)
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown(
-                    render_stat_card(len(analysis_history), "Total Analyses"),
-                    unsafe_allow_html=True
-                )
-            
-            with col2:
-                last_analysis_date = "Never"
+            render_page_header(f"Welcome back, {user_profile.get('full_name', 'User')}", f"{current_day}, {current_date}")
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(render_stat_card(len(analysis_history), "Total Analyses"), unsafe_allow_html=True)
+            with c2:
+                last_analysis_date = analysis_history[0]["timestamp"][:10] if analysis_history else "Never"
+                st.markdown(render_stat_card(last_analysis_date, "Last Analysis"), unsafe_allow_html=True)
+            with c3:
                 if analysis_history:
-                    last_analysis_date = analysis_history[0]['timestamp'][:10]
-                st.markdown(
-                    render_stat_card(last_analysis_date, "Last Analysis"),
-                    unsafe_allow_html=True
-                )
-            
-            with col3:
-                if analysis_history:
-                    conditions = [a['predicted_condition'] for a in analysis_history]
+                    conditions = [a["predicted_condition"] for a in analysis_history]
                     most_common = max(set(conditions), key=conditions.count)
-                    # Truncate if too long
                     display_condition = most_common[:15] + "..." if len(most_common) > 15 else most_common
-                    st.markdown(
-                        render_stat_card(display_condition, "Most Detected"),
-                        unsafe_allow_html=True
-                    )
                 else:
-                    st.markdown(
-                        render_stat_card("None", "Most Detected"),
-                        unsafe_allow_html=True
-                    )
-            
-            with col4:
+                    display_condition = "None"
+                st.markdown(render_stat_card(display_condition, "Most Detected"), unsafe_allow_html=True)
+            with c4:
                 health_score = min(100, max(0, 100 - (len(analysis_history) * 5)))
-                st.markdown(
-                    render_stat_card(f"{health_score}%", "Health Score"),
-                    unsafe_allow_html=True
-                )
-            
-            # Action Button
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                if st.button("Start New Analysis", use_container_width=True, type="primary", key="start_analysis_btn"):
-                    # Navigate to Analysis tab
-                    st.session_state.switch_to_analysis = True
+                st.markdown(render_stat_card(f"{health_score}%", "Health Score"), unsafe_allow_html=True)
+
+            mid_left, mid_center, mid_right = st.columns([2, 2, 2])
+            with mid_center:
+                if st.button("Start Analysis", type="primary", use_container_width=True):
+                    st.session_state.active_nav = "Analysis"
                     st.rerun()
 
-    with nav_history:
+    elif current_nav == "History":
         render_page_header("Analysis History", "Review your past medical image analyses")
-        
-        user_id = st.session_state.get('user_data', {}).get('user_id', '')
+        user_id = user_data.get("user_id", "")
         analysis_history = get_analysis_history(user_id)
-        
         if analysis_history:
-            st.markdown(f"**Total Records:** {len(analysis_history)}")
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            history_df = pd.DataFrame([
-                {
-                    'Date': h['timestamp'][:10],
-                    'Time': h['timestamp'][11:19],
-                    'Condition': h['predicted_condition'],
-                    'Confidence': f"{h['confidence_score']*100:.1f}%",
-                    'Image': h['image_name'][:30]
-                }
-                for h in analysis_history
-            ])
-            st.dataframe(history_df, use_container_width=True, hide_index=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            # Option to clear history
-            if st.button("Clear All History", key="clear_history"):
-                st.warning("History clearing feature coming soon.")
-        else:
-            st.info("No analysis history yet. Visit the Analysis tab to get started.")
-
-
-    with nav_analysis:
-        # LAZY MODEL LOADING: Load models only when Analysis tab is accessed for the first time
-        if not st.session_state.get('models_loaded', False):
-            render_loading_animation(
-                "Loading AI Models",
-                "Initializing 8 deep learning models for analysis..."
+            history_df = pd.DataFrame(
+                [
+                    {
+                        "Date": h["timestamp"][:10],
+                        "Time": h["timestamp"][11:19],
+                        "Condition": h["predicted_condition"],
+                        "Confidence": f"{h['confidence_score'] * 100:.1f}%",
+                        "Image": h["image_name"][:30],
+                    }
+                    for h in analysis_history
+                ]
             )
-            
-            try:
-                models, available_models, load_status = load_models_with_live_ui(len(classes))
-                st.session_state['models_loaded'] = True
-                st.session_state['load_status'] = load_status
-                
-                # Update metrics efter loading
-                status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=['model', 'status', 'details'])
-                loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
-                issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
-                
-                st.success(f"Models loaded successfully! {loaded_count} models ready for analysis.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error loading models: {e}")
-                # Fall back to loading without UI
-                models, available_models, load_status = load_all_models(len(classes))
-                st.session_state['models_loaded'] = True
-                st.session_state['load_status'] = load_status
-                st.rerun()
-        
-        # Models are now loaded - show analysis interface
-        render_page_header("AI Analysis", "Upload medical images for vitamin deficiency detection")
-        
-        # Model status metrics
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Active Models", f"{loaded_count}")
-        c2.metric("Detectable Conditions", f"{len(classes)}")
-        c3.metric("Model Issues", f"{issue_count}")
-        
-        if loaded_count < 3:
-            st.warning(f"Running with {loaded_count} model(s). Predictions available but with reduced accuracy.")
+            st.dataframe(history_df, use_container_width=True, hide_index=True)
+            if st.button("Clear All History", key="clear_history"):
+                show_error_modal("Action Unavailable", "History clearing feature is not enabled yet.", key_prefix="history_clear")
         else:
-            st.info(f"✓ {loaded_count} AI models loaded and ready for  analysis")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
+            st.info("No analysis history yet. Visit Analysis to get started.")
+
+    elif current_nav == "Analysis":
+        render_page_header("AI Analysis", "Upload an image and run analysis when ready")
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Loaded Models", str(loaded_count))
+        m2.metric("Detectable Conditions", str(len(classes)))
+        m3.metric("Model Issues", str(issue_count))
+        st.caption("Models load only when you click Run Analysis.")
 
         uploaded_file = st.file_uploader(
-            "Select image",
-            type=['png', 'jpg', 'jpeg'],
-            help="Use a clear, well-lit, and focused image.",
-            key=f"image_uploader_{st.session_state.uploader_nonce}"
+            "Upload image",
+            type=["png", "jpg", "jpeg"],
+            key=f"image_uploader_{st.session_state.uploader_nonce}",
         )
 
         inference_result = None
         image_for_result = None
 
         if uploaded_file is not None:
-            img = Image.open(uploaded_file)
-            image_for_result = img.copy()
+            try:
+                img = Image.open(uploaded_file)
+                image_for_result = img.copy()
+            except Exception as exc:
+                show_error_modal("Upload Error", f"Unable to read image: {exc}", key_prefix="upload_err")
+                return
 
             run_col, reset_col = st.columns([1, 1])
             with run_col:
-                run_analysis = st.button("Run Analysis", type="primary")
+                run_analysis = st.button("Run Analysis", type="primary", use_container_width=True)
             with reset_col:
-                reset_upload = st.button("Upload Another Image")
+                reset_upload = st.button("Upload Another Image", use_container_width=True)
 
             if reset_upload:
                 st.session_state.uploader_nonce += 1
@@ -1563,18 +1160,35 @@ def main():
 
             if run_analysis:
                 if not classes:
-                    st.error("No class folders found. Verify the dataset/train directory.")
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    show_error_modal("Analysis Error", "No class folders found. Verify dataset/train.", key_prefix="class_missing")
                     return
 
+                if not st.session_state.get("models_loaded", False):
+                    render_loading_animation("Loading AI Models", "This runs once per session.")
+                    try:
+                        models, available_models, load_status = load_models_with_live_ui(len(classes))
+                        st.session_state["models_loaded"] = True
+                        st.session_state["load_status"] = load_status
+                        status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
+                        loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
+                        issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
+                    except Exception as exc:
+                        log_event(f"Model loading error: {exc}", level="error")
+                        show_error_modal("Model Loading Error", str(exc), key_prefix="model_load_fail")
+                        return
+
+                if models is None or not available_models:
+                    models, available_models, load_status = load_all_models(len(classes))
+
                 if len(available_models) < MIN_MODELS_FOR_INFERENCE:
-                    st.error(f"Insufficient models loaded ({len(available_models)}/{MIN_MODELS_FOR_INFERENCE} minimum required). Check diagnostics and logs.")
+                    show_error_modal(
+                        "Analysis Error",
+                        f"Insufficient models loaded ({len(available_models)}/{MIN_MODELS_FOR_INFERENCE} required).",
+                        key_prefix="model_insufficient",
+                    )
                     if load_status:
-                        st.dataframe(pd.DataFrame(load_status), width='stretch', hide_index=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                        st.dataframe(pd.DataFrame(load_status), use_container_width=True, hide_index=True)
                     return
-                elif len(available_models) < 3:
-                    st.warning(f"Running with limited models ({len(available_models)}). Results may be less accurate than with full ensemble.")
 
                 try:
                     infer_ui = show_center_loader("Analyzing image")
@@ -1589,6 +1203,7 @@ def main():
                         )
                     finally:
                         infer_ui.empty()
+
                     predicted_class = classes[class_idx]
                     deficiency_data = DEFICIENCY_INFO.get(
                         predicted_class,
@@ -1596,103 +1211,82 @@ def main():
                             "vitamin": "Unknown",
                             "description": "Condition detected.",
                             "recommendations": "Consult a healthcare professional.",
-                            "icon": ""
-                        }
+                            "icon": "",
+                        },
                     )
                     inference_result = {
-                        'predicted_class': predicted_class,
-                        'confidence': confidence,
-                        'individual_preds': individual_preds,
-                        'ensemble_pred': ensemble_pred,
-                        'runtime_errors': runtime_errors,
-                        'deficiency_data': deficiency_data,
+                        "predicted_class": predicted_class,
+                        "confidence": confidence,
+                        "individual_preds": individual_preds,
+                        "ensemble_pred": ensemble_pred,
+                        "runtime_errors": runtime_errors,
+                        "deficiency_data": deficiency_data,
                     }
-                    
-                    # Store analysis in Firestore
-                    user_data = st.session_state.get('user_data', {})
-                    user_id = user_data.get('user_id', '')
-                    if user_id:
-                        vitamin = deficiency_data.get('vitamin', 'Unknown')
+
+                    if user_data.get("user_id"):
                         store_analysis(
-                            user_id=user_id,
+                            user_id=user_data["user_id"],
                             image_name=f"analysis_{datetime.now().isoformat()}",
                             predicted_condition=predicted_class,
-                            vitamin_deficiency=vitamin,
-                            confidence_score=float(confidence)
+                            vitamin_deficiency=deficiency_data.get("vitamin", "Unknown"),
+                            confidence_score=float(confidence),
                         )
-                except Exception as e:
-                    log_event(f"Run Analysis failed: {e}", level="error")
+                except Exception as exc:
+                    log_event(f"Run Analysis failed: {exc}", level="error")
                     log_event(traceback.format_exc(limit=8), level="error")
-                    st.error("Inference failed. Review model diagnostics and try another image.")
-                    st.exception(e)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    show_error_modal("Analysis Failure", str(exc), key_prefix="analysis_fail")
                     return
 
         if inference_result is not None and image_for_result is not None:
             st.markdown("---")
-            left_col, right_col = st.columns([1.05, 1], gap='large')
-
+            left_col, right_col = st.columns([1.05, 1], gap="large")
             with left_col:
-                st.markdown('<p class="section-title">Image</p>', unsafe_allow_html=True)
-                st.image(image_for_result, width='stretch')
-
+                st.image(image_for_result, use_container_width=True)
             with right_col:
-                predicted_class = inference_result['predicted_class']
-                confidence = inference_result['confidence']
-                individual_preds = inference_result['individual_preds']
-                ensemble_pred = inference_result['ensemble_pred']
-                runtime_errors = inference_result['runtime_errors']
-                deficiency_data = inference_result['deficiency_data']
+                predicted_class = inference_result["predicted_class"]
+                confidence = inference_result["confidence"]
+                individual_preds = inference_result["individual_preds"]
+                deficiency_data = inference_result["deficiency_data"]
 
-                st.markdown('<p class="section-title">Prediction</p>', unsafe_allow_html=True)
-                st.markdown('<div class="prediction-card">', unsafe_allow_html=True)
                 st.markdown(f"**Condition:** {predicted_class.title()}")
                 st.markdown(f"**Potential Deficiency:** {deficiency_data['vitamin']}")
                 st.markdown(f"**Clinical Notes:** {deficiency_data['description']}")
                 st.markdown(f"**Recommendations:** {deficiency_data['recommendations']}")
-                st.markdown('</div>', unsafe_allow_html=True)
 
                 metric_a, metric_b = st.columns(2)
-                metric_a.metric("Confidence", f"{confidence*100:.1f}%")
-                metric_b.metric("Method", active_method.replace('_', ' ').title())
+                metric_a.metric("Confidence", f"{confidence * 100:.1f}%")
+                metric_b.metric("Method", active_method.replace("_", " ").title())
 
                 votes = [int(np.argmax(pred)) for pred in individual_preds.values()]
                 top_vote_count = int(np.bincount(votes, minlength=len(classes)).max()) if votes else 0
                 vote_ratio = (top_vote_count / len(votes)) if votes else 0.0
-
                 if vote_ratio < 0.50:
-                    st.warning("Low model consensus. Try a clearer image and compare top predictions.")
+                    st.warning("Low model consensus. Try a clearer image.")
                 elif vote_ratio < 0.70:
-                    st.info("Moderate model consensus. Review the top predictions before interpretation.")
+                    st.info("Moderate model consensus. Review top predictions.")
 
-            st.markdown("---")
-            st.plotly_chart(create_top_predictions_chart(inference_result['ensemble_pred'], classes), width='stretch')
-
+            st.plotly_chart(create_top_predictions_chart(inference_result["ensemble_pred"], classes), use_container_width=True)
             with st.expander("Advanced model breakdown", expanded=False):
                 for model_name, pred in individual_preds.items():
                     model_class_idx = np.argmax(pred)
                     model_confidence = pred[model_class_idx]
                     model_class = classes[model_class_idx]
-
                     col_a, col_b, col_c = st.columns([2, 2, 1])
                     with col_a:
                         st.markdown(f"**{model_name}**")
-                        st.caption(MODEL_INFO.get(model_name, {'description': 'Deep learning model'})['description'])
+                        st.caption(MODEL_INFO.get(model_name, {"description": "Deep learning model"})["description"])
                     with col_b:
                         st.markdown(f"Predicted: **{model_class}**")
                     with col_c:
-                        progress_value = float(np.clip(model_confidence, 0.0, 1.0))
-                        st.progress(progress_value)
-                        st.caption(f"{model_confidence*100:.1f}%")
+                        st.progress(float(np.clip(model_confidence, 0.0, 1.0)))
+                        st.caption(f"{model_confidence * 100:.1f}%")
+                st.plotly_chart(create_prediction_chart(individual_preds, classes, predicted_class), use_container_width=True)
 
-                st.plotly_chart(create_prediction_chart(individual_preds, classes, predicted_class), width='stretch')
-
-            if runtime_errors:
-                st.warning("Some models were skipped during prediction.")
-                runtime_df = pd.DataFrame([
-                    {'model': m, 'error': err} for m, err in runtime_errors.items()
-                ])
-                st.dataframe(runtime_df, width='stretch', hide_index=True)
+            if inference_result["runtime_errors"]:
+                runtime_df = pd.DataFrame(
+                    [{"model": m, "error": err} for m, err in inference_result["runtime_errors"].items()]
+                )
+                st.dataframe(runtime_df, use_container_width=True, hide_index=True)
 
             report_data = f"""
 VITAMIN DEFICIENCY DETECTION REPORT
@@ -1713,98 +1307,85 @@ RECOMMENDATIONS
 ===============
 {inference_result['deficiency_data']['recommendations']}
 """
-            for model_name, pred in inference_result['individual_preds'].items():
+            for model_name, pred in individual_preds.items():
                 model_class_idx = np.argmax(pred)
-                report_data += f"\n{model_name}: {classes[model_class_idx]} ({pred[model_class_idx]*100:.2f}%)"
+                report_data += f"\n{model_name}: {classes[model_class_idx]} ({pred[model_class_idx] * 100:.2f}%)"
 
             st.download_button(
                 label="Download Report",
                 data=report_data,
                 file_name=f"deficiency_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                mime="text/plain"
+                mime="text/plain",
             )
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with nav_performance:
-        st.markdown("### Performance and Diagnostics")
-        st.markdown('<div class="soft-info">This section presents model metrics and load diagnostics from the current runtime.</div>', unsafe_allow_html=True)
-
+    elif current_nav == "Model Performance":
+        render_page_header("Performance and Diagnostics", "Model metrics and runtime diagnostics")
         if not status_df.empty:
-            st.dataframe(status_df, width='stretch', hide_index=True)
+            st.dataframe(status_df, use_container_width=True, hide_index=True)
         else:
-            st.info("No model load logs yet. Models will initialize at startup and then appear here.")
+            st.info("No model load logs yet. They appear after first Run Analysis.")
 
-        metadata_path = MODEL_DIR / 'ensemble_metadata.json'
+        metadata_path = MODEL_DIR / "ensemble_metadata.json"
         if metadata_path.exists():
             import json
-            with open(metadata_path, 'r') as f:
+
+            with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-
             r1, r2, r3 = st.columns(3)
-            r1.metric("Best Ensemble Accuracy", f"{metadata.get('best_ensemble_accuracy', 0)*100:.2f}%")
-            r2.metric("Best Individual Accuracy", f"{metadata.get('best_individual_accuracy', 0)*100:.2f}%")
-            r3.metric("Best Method", metadata.get('best_method', 'soft_voting').replace('_', ' ').title())
+            r1.metric("Best Ensemble Accuracy", f"{metadata.get('best_ensemble_accuracy', 0) * 100:.2f}%")
+            r2.metric("Best Individual Accuracy", f"{metadata.get('best_individual_accuracy', 0) * 100:.2f}%")
+            r3.metric("Best Method", metadata.get("best_method", "soft_voting").replace("_", " ").title())
 
-            if 'model_accuracies' in metadata:
-                model_acc_df = pd.DataFrame({
-                    'Model': list(metadata['model_accuracies'].keys()),
-                    'Accuracy (%)': [v * 100 for v in metadata['model_accuracies'].values()]
-                }).sort_values('Accuracy (%)', ascending=False)
-
+            if "model_accuracies" in metadata:
+                model_acc_df = pd.DataFrame(
+                    {
+                        "Model": list(metadata["model_accuracies"].keys()),
+                        "Accuracy (%)": [v * 100 for v in metadata["model_accuracies"].values()],
+                    }
+                ).sort_values("Accuracy (%)", ascending=False)
                 fig = px.bar(
                     model_acc_df,
-                    x='Model',
-                    y='Accuracy (%)',
-                    color='Accuracy (%)',
-                    color_continuous_scale='Blues',
-                    title='Model Accuracy Comparison'
+                    x="Model",
+                    y="Accuracy (%)",
+                    color="Accuracy (%)",
+                    color_continuous_scale=[[0.0, "#4F46E5"], [1.0, "#9CA3AF"]],
+                    title="Model Accuracy Comparison",
                 )
-                fig.update_layout(height=460, template='plotly_white')
-                st.plotly_chart(fig, width='stretch')
-                st.dataframe(model_acc_df, width='stretch', hide_index=True)
+                fig.update_layout(height=460, template="plotly_dark", paper_bgcolor="#121218", plot_bgcolor="#121218")
+                st.plotly_chart(fig, use_container_width=True)
+                st.dataframe(model_acc_df, use_container_width=True, hide_index=True)
         else:
-            st.info("No performance metadata file found. Run ensemble evaluation to populate this section.")
+            st.info("No performance metadata file found.")
 
-    with nav_status:
-        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
-        st.markdown('<p class="section-title">Model Loading Status</p>', unsafe_allow_html=True)
-        st.markdown(
-            '<p class="result-note">This tab shows which models were successfully loaded and which encountered issues during startup.</p>',
-            unsafe_allow_html=True,
-        )
-
+    elif current_nav == "Model Status":
+        render_page_header("Model Loading Status", "Models load only during Run Analysis")
         if load_status:
-            # Build status table from load_status
             status_rows = []
             for i, row in enumerate(load_status, start=1):
-                details_lines = str(row.get('details', '')).splitlines()
-                status_rows.append({
-                    'Step': i,
-                    'Model': row.get('model', ''),
-                    'Status': row.get('status', ''),
-                    'Details': details_lines[0] if details_lines else '',
-                })
+                details_lines = str(row.get("details", "")).splitlines()
+                status_rows.append(
+                    {
+                        "Step": i,
+                        "Model": row.get("model", ""),
+                        "Status": row.get("status", ""),
+                        "Details": details_lines[0] if details_lines else "",
+                    }
+                )
             status_table_df = pd.DataFrame(status_rows)
             st.dataframe(status_table_df, use_container_width=True, hide_index=True)
-
-            # Show summary
-            st.markdown(f"**Summary**: {loaded_count} model(s) loaded successfully, {issue_count} issue(s) encountered.")
-            
+            st.markdown(f"**Summary**: {loaded_count} loaded, {issue_count} issue(s).")
             if loaded_count < len(ACTIVE_MODEL_NAMES):
                 st.warning(
                     f"Running in low-memory mode with {loaded_count} model(s). "
-                    "Some models were skipped due to size constraints or errors. "
-                    "For full ensemble performance, consider upgrading to a hosting plan with more RAM."
+                    "For full ensemble performance, use higher-memory hosting."
                 )
         else:
-            st.info("No model loading status available.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.info("No model loading status yet. Click Run Analysis to initialize models.")
 
-    with nav_about:
-        st.markdown("### About")
-        st.markdown("""
+    else:
+        render_page_header("About", "Application overview")
+        st.markdown(
+            """
 This application performs vitamin deficiency inference from images using an ensemble of deep learning models.
 
 - Inference engine: TensorFlow/Keras
@@ -1812,10 +1393,11 @@ This application performs vitamin deficiency inference from images using an ense
 - Model family: CNN, EfficientNetV2L, InceptionResNetV2, InceptionV3, MobileNet, ResNet, VGG16, Xception
 
 Medical disclaimer: This tool is for informational purposes only and is not a substitute for professional diagnosis.
-        """)
+            """
+        )
 
     st.markdown("---")
-    st.caption("Vitamin Deficiency AI | Ensemble Inference Interface")
+    st.caption("Vitamin Deficiency AI | Premium Inference Dashboard")
 
 if __name__ == "__main__":
     try:

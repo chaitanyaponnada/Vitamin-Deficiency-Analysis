@@ -28,7 +28,7 @@ def get_firebase_config() -> Dict:
     # For demo mode: allow app to work without Firebase if env vars not set
     demo_mode = not all([config['api_key'], config['project_id']])
     if demo_mode:
-        st.warning("⚠️ Firebase not configured. Running in demo mode with local authentication.")
+        st.warning("Firebase not configured. Running in demo mode with local authentication.")
     
     return config
 
@@ -184,7 +184,8 @@ def login_user(email_or_username: str, password: str) -> Tuple[bool, str, Option
             'email': user_data['email'],
             'username': user_data['username'],
             'full_name': user_data['full_name'],
-            'login_provider': 'email'
+            'login_provider': 'email',
+            'photo_url': user_data.get('photo_url', ''),
         }
     
     # Firebase mode
@@ -215,7 +216,8 @@ def login_user(email_or_username: str, password: str) -> Tuple[bool, str, Option
             'email': email,
             'username': user_profile.get('username', ''),
             'full_name': user_profile.get('full_name', ''),
-            'login_provider': 'email'
+            'login_provider': 'email',
+            'photo_url': user_profile.get('photo_url', ''),
         }
     
     except Exception as e:
@@ -241,9 +243,10 @@ def login_with_google(id_token: str) -> Tuple[bool, str, Optional[Dict]]:
     try:
         # Verify ID token with Firebase
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={config['api_key']}"
+        request_uri = f"https://{config['auth_domain']}" if config.get('auth_domain') else "http://localhost"
         payload = {
             'postBody': f'id_token={id_token}&providerId=google.com',
-            'requestUri': 'http://localhost',
+            'requestUri': request_uri,
             'returnIdpCredential': True,
             'returnSecureToken': True
         }
@@ -257,6 +260,7 @@ def login_with_google(id_token: str) -> Tuple[bool, str, Optional[Dict]]:
         user_id = data.get('localId', '')
         email = data.get('email', '')
         display_name = data.get('displayName', email.split('@')[0])
+        photo_url = data.get('photoUrl', '')
         
         # Check if profile exists
         user_profile = get_user_profile(user_id)
@@ -277,7 +281,8 @@ def login_with_google(id_token: str) -> Tuple[bool, str, Optional[Dict]]:
                 email=email,
                 full_name=display_name,
                 username=username,
-                login_provider='google'
+                login_provider='google',
+                photo_url=photo_url,
             )
             
             user_profile = {
@@ -285,7 +290,8 @@ def login_with_google(id_token: str) -> Tuple[bool, str, Optional[Dict]]:
                 'email': email,
                 'full_name': display_name,
                 'username': username,
-                'login_provider': 'google'
+                'login_provider': 'google',
+                'photo_url': photo_url,
             }
         
         return True, "Google Sign-In successful.", {
@@ -293,14 +299,15 @@ def login_with_google(id_token: str) -> Tuple[bool, str, Optional[Dict]]:
             'email': email,
             'username': user_profile.get('username', email.split('@')[0]),
             'full_name': user_profile.get('full_name', display_name),
-            'login_provider': 'google'
+            'login_provider': 'google',
+            'photo_url': user_profile.get('photo_url', photo_url),
         }
     
     except Exception as e:
         return False, f"Google Sign-In error: {str(e)}", None
 
 
-def create_user_profile(user_id: str, email: str, full_name: str, username: str, login_provider: str = 'email') -> bool:
+def create_user_profile(user_id: str, email: str, full_name: str, username: str, login_provider: str = 'email', photo_url: str = '') -> bool:
     """Create user profile in Firestore."""
     config = get_firebase_config()
     
@@ -312,6 +319,7 @@ def create_user_profile(user_id: str, email: str, full_name: str, username: str,
             'email': email,
             'full_name': full_name,
             'username': username,
+            'photo_url': photo_url,
             'created_at': datetime.now().isoformat(),
         })
         return True
@@ -325,6 +333,7 @@ def create_user_profile(user_id: str, email: str, full_name: str, username: str,
                 'email': {'stringValue': email},
                 'full_name': {'stringValue': full_name},
                 'username': {'stringValue': username},
+                'photo_url': {'stringValue': photo_url},
                 'created_at': {'stringValue': datetime.now().isoformat()},
                 'last_login': {'stringValue': datetime.now().isoformat()},
                 'login_provider': {'stringValue': login_provider},
@@ -363,6 +372,7 @@ def get_user_profile(user_id: str) -> Optional[Dict]:
             'email': fields.get('email', {}).get('stringValue', ''),
             'full_name': fields.get('full_name', {}).get('stringValue', ''),
             'username': fields.get('username', {}).get('stringValue', ''),
+            'photo_url': fields.get('photo_url', {}).get('stringValue', ''),
             'created_at': fields.get('created_at', {}).get('stringValue', ''),
             'last_login': fields.get('last_login', {}).get('stringValue', ''),
         }
