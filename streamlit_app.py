@@ -1180,85 +1180,17 @@ def show_center_loader(message):
 
 
 def load_models_with_live_ui(num_classes):
-    """Load models once and render live progress UI during startup."""
-    st.markdown("#### Live Model Loading")
-    loader_overlay = show_center_loader("Loading models at startup")
-    model_load_note = st.empty()
-    model_load_progress = st.progress(0)
-    model_load_table = st.empty()
-    live_rows = []
-
-    def update_model_load_ui(event):
-        phase = event.get('phase', '')
-        idx = int(event.get('index', 0) or 0)
-        total = int(event.get('total', 0) or 0)
-        denominator = total if total > 0 else 1
-        frac = min(max(float(idx) / float(denominator), 0.0), 1.0)
-        pct = int(frac * 100)
-
-        model = event.get('model', '')
-        details_lines = str(event.get('details', '') or '').splitlines()
-        details = details_lines[0] if details_lines else ''
-
-        if phase == 'init':
-            model_load_note.info("Initializing model loading...")
-        elif phase == 'start':
-            model_load_note.info(f"[{idx}/{total}] Loading {model}...")
-        elif phase == 'loaded':
-            model_load_note.success(f"[{idx}/{total}] Loaded {model}")
-        elif phase == 'failed':
-            model_load_note.error(f"[{idx}/{total}] Failed {model}: {details}")
-        elif phase == 'missing':
-            model_load_note.warning(f"[{idx}/{total}] Missing {model}: {details}")
-        elif phase == 'skipped':
-            model_load_note.warning(f"[{idx}/{total}] Skipped {model}: {details}")
-        elif phase == 'complete':
-            loaded = int(event.get('loaded', 0) or 0)
-            issues = int(event.get('issues', 0) or 0)
-            model_load_note.success(
-                f"Model loading completed. Loaded={loaded}, Issues={issues}."
-            )
-
-        progress_text = f"Model loading progress: {pct}% ({idx}/{total})" if total > 0 else "Model loading progress"
-        try:
-            model_load_progress.progress(frac, text=progress_text)
-        except TypeError:
-            model_load_progress.progress(frac)
-
-        if phase in {'loaded', 'failed', 'missing', 'skipped'}:
-            live_rows.append({
-                'step': len(live_rows) + 1,
-                'model': model,
-                'status': phase,
-                'details': details,
-            })
-            model_load_table.dataframe(pd.DataFrame(live_rows), width='stretch', hide_index=True)
+    """Load models once with simple centered loading message during startup."""
+    loader_overlay = show_center_loader("Initializing AI models… Please wait.")
 
     try:
+        # Load all models in background without progress callbacks
         models, available_models, load_status = load_all_models(
             num_classes,
-            _progress_callback=update_model_load_ui,
+            _progress_callback=None,
         )
     finally:
         loader_overlay.empty()
-
-    if load_status and not live_rows:
-        # Cache hit path: populate table when per-model callbacks are not replayed.
-        fallback_rows = []
-        for i, row in enumerate(load_status, start=1):
-            details_lines = str(row.get('details', '')).splitlines()
-            fallback_rows.append({
-                'step': i,
-                'model': row.get('model', ''),
-                'status': row.get('status', ''),
-                'details': details_lines[0] if details_lines else '',
-            })
-        model_load_table.dataframe(pd.DataFrame(fallback_rows), width='stretch', hide_index=True)
-        model_load_note.info("Models were retrieved from server cache.")
-        try:
-            model_load_progress.progress(1.0, text="Model loading progress: 100% (cache)")
-        except TypeError:
-            model_load_progress.progress(1.0)
 
     return models, available_models, load_status
 
@@ -1377,7 +1309,7 @@ def main():
     loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
     issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
 
-    nav_analysis, nav_performance, nav_about = st.tabs(["Analysis", "Model Performance", "About"])
+    nav_analysis, nav_performance, nav_status, nav_about = st.tabs(["Analysis", "Model Performance", "Model Status", "About"])
 
     with nav_analysis:
         st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
@@ -1611,6 +1543,42 @@ RECOMMENDATIONS
                 st.dataframe(model_acc_df, width='stretch', hide_index=True)
         else:
             st.info("No performance metadata file found. Run ensemble evaluation to populate this section.")
+
+    with nav_status:
+        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Model Loading Status</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="result-note">This tab shows which models were successfully loaded and which encountered issues during startup.</p>',
+            unsafe_allow_html=True,
+        )
+
+        if load_status:
+            # Build status table from load_status
+            status_rows = []
+            for i, row in enumerate(load_status, start=1):
+                details_lines = str(row.get('details', '')).splitlines()
+                status_rows.append({
+                    'Step': i,
+                    'Model': row.get('model', ''),
+                    'Status': row.get('status', ''),
+                    'Details': details_lines[0] if details_lines else '',
+                })
+            status_table_df = pd.DataFrame(status_rows)
+            st.dataframe(status_table_df, use_container_width=True, hide_index=True)
+
+            # Show summary
+            st.markdown(f"**Summary**: {loaded_count} model(s) loaded successfully, {issue_count} issue(s) encountered.")
+            
+            if loaded_count < len(ACTIVE_MODEL_NAMES):
+                st.warning(
+                    f"⚠️ Running in low-memory mode with {loaded_count} model(s). "
+                    "Some models were skipped due to size constraints or errors. "
+                    "For full ensemble performance, consider upgrading to a hosting plan with more RAM."
+                )
+        else:
+            st.info("No model loading status available.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with nav_about:
         st.markdown("### About")
