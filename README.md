@@ -444,10 +444,9 @@ If you use this project in academic work, please cite:
 
 ## Contact & Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/vitamin-deficiency-main/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/vitamin-deficiency-main/discussions)
-- **Email**: your.email@example.com
-
+- **Issues**: [GitHub Issues](https://github.com/chaitanyaponnada/vitamin-deficiency-main/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/chaitanyaponnada/vitamin-deficiency-main/discussions)
+- **Email**: chaitanyaponnada657@gmail.com
 ---
 
 **⚠️ Medical Disclaimer**: This application is for educational and informational purposes only. It does not provide medical advice, diagnosis, or treatment. Always consult with qualified healthcare professionals for medical concerns. Do not rely solely on this tool for health decisions.
