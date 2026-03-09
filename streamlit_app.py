@@ -28,6 +28,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
 
+# Import authentication modules
+from firebase_auth import get_user_profile, store_analysis, get_analysis_history
+from auth_ui import show_authentication_gateway
+
 
 class TimeoutException(Exception):
     pass
@@ -1197,6 +1201,14 @@ def load_models_with_live_ui(num_classes):
 # ==================== MAIN APP ====================
 
 def main():
+    # Check authentication - if not authenticated, show auth gateway
+    if 'is_authenticated' not in st.session_state:
+        st.session_state.is_authenticated = False
+    
+    if not st.session_state.is_authenticated:
+        show_authentication_gateway()
+        return
+    
     if 'uploader_nonce' not in st.session_state:
         st.session_state.uploader_nonce = 0
 
@@ -1309,7 +1321,149 @@ def main():
     loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
     issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
 
-    nav_analysis, nav_performance, nav_status, nav_about = st.tabs(["Analysis", "Model Performance", "Model Status", "About"])
+    # Profile menu in top-right corner
+    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1.5])
+    with col5:
+        user_data = st.session_state.get('user_data', {})
+        username = user_data.get('username', 'User')
+        user_initial = username[0].upper() if username else 'U'
+        
+        if st.button(f"👤 {user_initial}", key="profile_menu", help=f"Logged in as @{username}"):
+            st.session_state.show_profile_menu = not st.session_state.get('show_profile_menu', False)
+    
+    # Show profile menu dropdown
+    if st.session_state.get('show_profile_menu', False):
+        with col5:
+            profile_option = st.selectbox(
+                "Profile Menu",
+                ["View Profile", "View History", "Logout"],
+                key="profile_options"
+            )
+            
+            if profile_option == "View Profile":
+                st.session_state.profile_page = "profile"
+                st.session_state.show_profile_menu = False
+                st.rerun()
+            elif profile_option == "View History":
+                st.session_state.profile_page = "history_from_menu"
+                st.session_state.show_profile_menu = False
+                st.rerun()
+            elif profile_option == "Logout":
+                st.session_state.is_authenticated = False
+                st.session_state.user_data = None
+                st.session_state.clear()
+                st.rerun()
+
+    # Navigate to profile page if requested
+    if st.session_state.get('profile_page') == 'profile':
+        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Your Profile</p>', unsafe_allow_html=True)
+        
+        user_data = st.session_state.get('user_data', {})
+        user_profile = get_user_profile(user_data.get('user_id', ''))
+        
+        if user_profile:
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown(f"<div style='font-size: 64px; text-align: center;'>{user_initial}</div>", unsafe_allow_html=True)
+            with col2:
+                st.write(f"**Full Name**: {user_profile.get('full_name', 'N/A')}")
+                st.write(f"**Username**: @{user_profile.get('username', 'N/A')}")
+                st.write(f"**Email**: {user_profile.get('email', 'N/A')}")
+                st.write(f"**Account Created**: {user_profile.get('created_at', 'N/A')[:10]}")
+                
+                analysis_count = len(get_analysis_history(user_data.get('user_id', '')))
+                st.write(f"**Total Analyses**: {analysis_count}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        if st.button("← Back"):
+            st.session_state.profile_page = None
+            st.rerun()
+        st.stop()
+    
+    # Navigate to history page if requested from menu
+    if st.session_state.get('profile_page') == 'history_from_menu':
+        st.session_state.profile_page = None
+        st.session_state.show_history_tab = True
+        st.rerun()
+
+    nav_dashboard, nav_analysis, nav_history, nav_performance, nav_status, nav_about = st.tabs(["Dashboard", "Analysis", "History", "Model Performance", "Model Status", "About"])
+
+    with nav_dashboard:
+        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Dashboard</p>', unsafe_allow_html=True)
+        
+        user_data = st.session_state.get('user_data', {})
+        user_id = user_data.get('user_id', '')
+        user_profile = get_user_profile(user_id)
+        analysis_history = get_analysis_history(user_id)
+        
+        if user_profile:
+            # Welcome section
+            st.markdown(f"### Welcome, {user_profile.get('full_name', 'User')}! 👋")
+            
+            # Statistics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Analyses", len(analysis_history))
+            
+            with col2:
+                last_analysis_date = "Never"
+                if analysis_history:
+                    last_analysis_date = analysis_history[0]['timestamp'][:10]
+                st.metric("Last Analysis", last_analysis_date)
+            
+            with col3:
+                if analysis_history:
+                    most_common = max(set(a['predicted_condition'] for a in analysis_history), 
+                                     key=lambda x: sum(1 for a in analysis_history if a['predicted_condition'] == x))
+                    st.metric("Most Detected", most_common)
+                else:
+                    st.metric("Most Detected", "None yet")
+            
+            with col4:
+                health_score = min(100, max(0, 100 - (len(analysis_history) * 5)))
+                st.metric("Health Score", f"{health_score}%")
+            
+            # Quick start button
+            st.markdown("---")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🔍 Start New Analysis", use_container_width=True, type="primary"):
+                    st.session_state.show_history_tab = False
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with nav_history:
+        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Analysis History</p>', unsafe_allow_html=True)
+        
+        user_id = st.session_state.get('user_data', {}).get('user_id', '')
+        analysis_history = get_analysis_history(user_id)
+        
+        if analysis_history:
+            history_df = pd.DataFrame([
+                {
+                    'Date': h['timestamp'][:10],
+                    'Time': h['timestamp'][11:19],
+                    'Condition': h['predicted_condition'],
+                    'Confidence': f"{h['confidence_score']*100:.1f}%",
+                    'Image': h['image_name'][:30]
+                }
+                for h in analysis_history
+            ])
+            st.dataframe(history_df, use_container_width=True, hide_index=True)
+            
+            # Option to clear history
+            if st.button("🗑️ Clear All History", key="clear_history"):
+                st.warning("History clearing not yet implemented in this version.")
+        else:
+            st.info("📋 No analyses yet. Start by uploading an image in the Analysis tab!")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with nav_analysis:
         st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
@@ -1398,6 +1552,19 @@ def main():
                         'runtime_errors': runtime_errors,
                         'deficiency_data': deficiency_data,
                     }
+                    
+                    # Store analysis in Firestore
+                    user_data = st.session_state.get('user_data', {})
+                    user_id = user_data.get('user_id', '')
+                    if user_id:
+                        vitamin = deficiency_data.get('vitamin', 'Unknown')
+                        store_analysis(
+                            user_id=user_id,
+                            image_name=f"analysis_{datetime.now().isoformat()}",
+                            predicted_condition=predicted_class,
+                            vitamin_deficiency=vitamin,
+                            confidence_score=float(confidence)
+                        )
                 except Exception as e:
                     log_event(f"Run Analysis failed: {e}", level="error")
                     log_event(traceback.format_exc(limit=8), level="error")
