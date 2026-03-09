@@ -37,7 +37,12 @@ from datetime import datetime
 
 # Import authentication modules
 from firebase_auth import get_user_profile, store_analysis, get_analysis_history
-from auth_ui import show_authentication_gateway
+from auth_ui_modern import show_authentication_gateway
+from ui_components import (
+    inject_global_styles, render_header, render_profile_dropdown,
+    render_loading_animation, render_page_header, render_stat_card,
+    get_current_date_display
+)
 
 
 class TimeoutException(Exception):
@@ -604,7 +609,7 @@ DEFICIENCY_INFO = {
         "vitamin": "Vitamin A",
         "description": "Bulging eyes (proptosis) can be associated with thyroid issues or vitamin A deficiency.",
         "recommendations": "Eat foods high in potassium to balance electrolytes: bananas, yogurt, potatoes, dried apricots. Also, include vitamin A-rich foods like carrots, sweet potatoes, and leafy greens.",
-        "icon": "👁️"
+        "icon": ""
     },
     "cataracts eyes": {
         "vitamin": "Vitamin D & E",
@@ -616,7 +621,7 @@ DEFICIENCY_INFO = {
         "vitamin": "Vitamin D",
         "description": "Clubbing of fingers/toes indicates underlying conditions like lung disease or vitamin D deficiency.",
         "recommendations": "Include meat, fish, eggs, beans, and nuts in your diet. Aim for two portions daily, with fish twice weekly (including oily fish like salmon).",
-        "icon": "🖐️"
+        "icon": ""
     },
     "crossed eyes": {
         "vitamin": "Vitamin B6 & C",
@@ -1208,6 +1213,9 @@ def load_models_with_live_ui(num_classes):
 # ==================== MAIN APP ====================
 
 def main():
+    # Inject modern UI styles
+    inject_global_styles()
+    
     # Check authentication - if not authenticated, show auth gateway
     if 'is_authenticated' not in st.session_state:
         st.session_state.is_authenticated = False
@@ -1309,149 +1317,162 @@ def main():
     active_method = metadata.get('best_method', ENSEMBLE_METHOD)
     active_weights = metadata.get('model_weights', {})
 
-    # Load models at startup with animation once per session; reuse cache afterwards.
-    if not st.session_state.get('startup_models_initialized', False):
-        try:
-            models, available_models, load_status = load_models_with_live_ui(len(classes))
-            st.session_state['startup_models_initialized'] = True
-        except Exception as e:
-            st.error(f"Error during model loading: {e}")
-            # Fall back to loading without UI (may return partial results)
-            models, available_models, load_status = load_all_models(len(classes))
-            st.session_state['startup_models_initialized'] = True
-    else:
-        models, available_models, load_status = load_all_models(len(classes))
-
-    st.session_state['load_status'] = load_status
-
-    status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=['model', 'status', 'details'])
-    loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
-    issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
-
-    # Profile menu in top-right corner
-    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1.5])
-    with col5:
-        user_data = st.session_state.get('user_data', {})
-        username = user_data.get('username', 'User')
-        user_initial = username[0].upper() if username else 'U'
-        
-        if st.button(f"👤 {user_initial}", key="profile_menu", help=f"Logged in as @{username}"):
-            st.session_state.show_profile_menu = not st.session_state.get('show_profile_menu', False)
+    # LAZY LOADING: Models will be loaded only when Analysis tab is accessed for the first time
+    # This prevents unnecessary model loading during dashboard/profile/other tab interactions
+    models = None
+    available_models = []
+    load_status = []
+    loaded_count = 0
+    issue_count = 0
     
-    # Show profile menu dropdown
-    if st.session_state.get('show_profile_menu', False):
-        with col5:
-            profile_option = st.selectbox(
-                "Profile Menu",
-                ["View Profile", "View History", "Logout"],
-                key="profile_options"
-            )
-            
-            if profile_option == "View Profile":
-                st.session_state.profile_page = "profile"
-                st.session_state.show_profile_menu = False
-                st.rerun()
-            elif profile_option == "View History":
-                st.session_state.profile_page = "history_from_menu"
-                st.session_state.show_profile_menu = False
-                st.rerun()
-            elif profile_option == "Logout":
-                st.session_state.is_authenticated = False
-                st.session_state.user_data = None
-                st.session_state.clear()
-                st.rerun()
+    # Check if models have been loaded previously in this session
+    if st.session_state.get('models_loaded', False):
+        # Retrieve cached models
+        models, available_models, load_status = load_all_models(len(classes))
+        status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=['model', 'status', 'details'])
+        loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
+        issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
+        st.session_state['load_status'] = load_status
 
-    # Navigate to profile page if requested
-    if st.session_state.get('profile_page') == 'profile':
-        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
-        st.markdown('<p class="section-title">Your Profile</p>', unsafe_allow_html=True)
+    # Modern header with profile menu
+    user_data = st.session_state.get('user_data', {})
+    render_header(user_data)
+    render_profile_dropdown(user_data)
+
+    # Handle profile routing
+    if st.session_state.get('active_tab') == 'profile':
+        render_page_header("Profile", "Manage your account settings")
         
         user_data = st.session_state.get('user_data', {})
         user_profile = get_user_profile(user_data.get('user_id', ''))
         
         if user_profile:
-            col1, col2 = st.columns([1, 2])
+            col1, col2 = st.columns([1, 3])
+            
             with col1:
-                st.markdown(f"<div style='font-size: 64px; text-align: center;'>{user_initial}</div>", unsafe_allow_html=True)
+                username = user_profile.get('username', 'User')
+                initial = username[0].upper() if username else 'U'
+                st.markdown(f"""
+                    <div style="
+                        width: 120px;
+                        height: 120px;
+                        border-radius: 50%;
+                        background: linear-gradient(135deg, #667eea 0%, #76 4ba2 100%);
+                        color: white;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 3rem;
+                        font-weight: 700;
+                        margin: 0 auto;
+                    ">{initial}</div>
+                """, unsafe_allow_html=True)
+            
             with col2:
-                st.write(f"**Full Name**: {user_profile.get('full_name', 'N/A')}")
-                st.write(f"**Username**: @{user_profile.get('username', 'N/A')}")
-                st.write(f"**Email**: {user_profile.get('email', 'N/A')}")
-                st.write(f"**Account Created**: {user_profile.get('created_at', 'N/A')[:10]}")
+                st.markdown("### Account Information")
+                st.write(f"**Full Name:** {user_profile.get('full_name', 'N/A')}")
+                st.write(f"**Username:** @{user_profile.get('username', 'N/A')}")
+                st.write(f"**Email:** {user_profile.get('email', 'N/A')}")
+                st.write(f"**Member Since:** {user_profile.get('created_at', 'N/A')[:10]}")
                 
                 analysis_count = len(get_analysis_history(user_data.get('user_id', '')))
-                st.write(f"**Total Analyses**: {analysis_count}")
+                st.write(f"**Total Analyses:** {analysis_count}")
         
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        if st.button("← Back"):
-            st.session_state.profile_page = None
+        if st.button("← Back to Dashboard", type="secondary"):
+            st.session_state.active_tab = None
             st.rerun()
         st.stop()
-    
-    # Navigate to history page if requested from menu
-    if st.session_state.get('profile_page') == 'history_from_menu':
-        st.session_state.profile_page = None
-        st.session_state.show_history_tab = True
-        st.rerun()
 
-    nav_dashboard, nav_analysis, nav_history, nav_performance, nav_status, nav_about = st.tabs(["Dashboard", "Analysis", "History", "Model Performance", "Model Status", "About"])
+    # Check if we should switch to Analysis tab (from Dashboard button)
+    if st.session_state.get('switch_to_analysis', False):
+        st.session_state.switch_to_analysis = False
+        # Force tab to Analysis (this will be handled by tab index)
+    
+    nav_dashboard, nav_analysis, nav_history, nav_performance, nav_status, nav_about = st.tabs([
+        "Dashboard", "Analysis", "History", "Model Performance", "Model Status", "About"
+    ])
 
     with nav_dashboard:
-        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
-        st.markdown('<p class="section-title">Dashboard</p>', unsafe_allow_html=True)
-        
+        # Modern Dashboard with animations and date display
         user_data = st.session_state.get('user_data', {})
         user_id = user_data.get('user_id', '')
         user_profile = get_user_profile(user_id)
         analysis_history = get_analysis_history(user_id)
         
         if user_profile:
-            # Welcome section
-            st.markdown(f"### Welcome, {user_profile.get('full_name', 'User')}! 👋")
+            # Get current date
+            current_date, current_day = get_current_date_display()
             
-            # Statistics
+            # Welcome section with animation
+            full_name = user_profile.get('full_name', 'User')
+            st.markdown(f"""
+                <div class="welcome-section">
+                    <h1 class="page-title">Welcome back, {full_name}</h1>
+                    <p class="page-subtitle">{current_day}, {current_date}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Statistics Cards
+            st.markdown("<br>", unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("Total Analyses", len(analysis_history))
+                st.markdown(
+                    render_stat_card(len(analysis_history), "Total Analyses"),
+                    unsafe_allow_html=True
+                )
             
             with col2:
                 last_analysis_date = "Never"
                 if analysis_history:
                     last_analysis_date = analysis_history[0]['timestamp'][:10]
-                st.metric("Last Analysis", last_analysis_date)
+                st.markdown(
+                    render_stat_card(last_analysis_date, "Last Analysis"),
+                    unsafe_allow_html=True
+                )
             
             with col3:
                 if analysis_history:
-                    most_common = max(set(a['predicted_condition'] for a in analysis_history), 
-                                     key=lambda x: sum(1 for a in analysis_history if a['predicted_condition'] == x))
-                    st.metric("Most Detected", most_common)
+                    conditions = [a['predicted_condition'] for a in analysis_history]
+                    most_common = max(set(conditions), key=conditions.count)
+                    # Truncate if too long
+                    display_condition = most_common[:15] + "..." if len(most_common) > 15 else most_common
+                    st.markdown(
+                        render_stat_card(display_condition, "Most Detected"),
+                        unsafe_allow_html=True
+                    )
                 else:
-                    st.metric("Most Detected", "None yet")
+                    st.markdown(
+                        render_stat_card("None", "Most Detected"),
+                        unsafe_allow_html=True
+                    )
             
             with col4:
                 health_score = min(100, max(0, 100 - (len(analysis_history) * 5)))
-                st.metric("Health Score", f"{health_score}%")
+                st.markdown(
+                    render_stat_card(f"{health_score}%", "Health Score"),
+                    unsafe_allow_html=True
+                )
             
-            # Quick start button
-            st.markdown("---")
+            # Action Button
+            st.markdown("<br><br>", unsafe_allow_html=True)
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                if st.button("🔍 Start New Analysis", use_container_width=True, type="primary"):
-                    st.session_state.show_history_tab = False
+                if st.button("Start New Analysis", use_container_width=True, type="primary", key="start_analysis_btn"):
+                    # Navigate to Analysis tab
+                    st.session_state.switch_to_analysis = True
                     st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with nav_history:
-        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
-        st.markdown('<p class="section-title">Analysis History</p>', unsafe_allow_html=True)
+        render_page_header("Analysis History", "Review your past medical image analyses")
         
         user_id = st.session_state.get('user_data', {}).get('user_id', '')
         analysis_history = get_analysis_history(user_id)
         
         if analysis_history:
+            st.markdown(f"**Total Records:** {len(analysis_history)}")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
             history_df = pd.DataFrame([
                 {
                     'Date': h['timestamp'][:10],
@@ -1464,30 +1485,57 @@ def main():
             ])
             st.dataframe(history_df, use_container_width=True, hide_index=True)
             
+            st.markdown("<br>", unsafe_allow_html=True)
             # Option to clear history
-            if st.button("🗑️ Clear All History", key="clear_history"):
-                st.warning("History clearing not yet implemented in this version.")
+            if st.button("Clear All History", key="clear_history"):
+                st.warning("History clearing feature coming soon.")
         else:
-            st.info("📋 No analyses yet. Start by uploading an image in the Analysis tab!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.info("No analysis history yet. Visit the Analysis tab to get started.")
+
 
     with nav_analysis:
-        st.markdown('<div class="center-wrap">', unsafe_allow_html=True)
-        st.markdown('<p class="section-title">Upload and Infer</p>', unsafe_allow_html=True)
-        st.markdown(
-            '<p class="result-note">Upload an image and run inference. The result panel will show image and diagnosis side-by-side for faster review.</p>',
-            unsafe_allow_html=True,
-        )
-
+        # LAZY MODEL LOADING: Load models only when Analysis tab is accessed for the first time
+        if not st.session_state.get('models_loaded', False):
+            render_loading_animation(
+                "Loading AI Models",
+                "Initializing 8 deep learning models for analysis..."
+            )
+            
+            try:
+                models, available_models, load_status = load_models_with_live_ui(len(classes))
+                st.session_state['models_loaded'] = True
+                st.session_state['load_status'] = load_status
+                
+                # Update metrics efter loading
+                status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=['model', 'status', 'details'])
+                loaded_count = int((status_df['status'] == 'loaded').sum()) if not status_df.empty else 0
+                issue_count = int((status_df['status'] != 'loaded').sum()) if not status_df.empty else 0
+                
+                st.success(f"Models loaded successfully! {loaded_count} models ready for analysis.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error loading models: {e}")
+                # Fall back to loading without UI
+                models, available_models, load_status = load_all_models(len(classes))
+                st.session_state['models_loaded'] = True
+                st.session_state['load_status'] = load_status
+                st.rerun()
+        
+        # Models are now loaded - show analysis interface
+        render_page_header("AI Analysis", "Upload medical images for vitamin deficiency detection")
+        
+        # Model status metrics
         c1, c2, c3 = st.columns(3)
-        c1.metric("Loaded Models", f"{loaded_count}")
-        c2.metric("Detected Classes", f"{len(classes)}")
+        c1.metric("Active Models", f"{loaded_count}")
+        c2.metric("Detectable Conditions", f"{len(classes)}")
         c3.metric("Model Issues", f"{issue_count}")
+        
         if loaded_count < 3:
-            st.caption(f"⚠️ Running in low-memory mode with {loaded_count} model(s). Predictions available but with reduced ensemble accuracy.")
+            st.warning(f"Running with {loaded_count} model(s). Predictions available but with reduced accuracy.")
         else:
-            st.caption("Models are preloaded once at server startup and reused for all analyses.")
+            st.info(f"✓ {loaded_count} AI models loaded and ready for  analysis")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
 
         uploaded_file = st.file_uploader(
             "Select image",
@@ -1745,7 +1793,7 @@ RECOMMENDATIONS
             
             if loaded_count < len(ACTIVE_MODEL_NAMES):
                 st.warning(
-                    f"⚠️ Running in low-memory mode with {loaded_count} model(s). "
+                    f"Running in low-memory mode with {loaded_count} model(s). "
                     "Some models were skipped due to size constraints or errors. "
                     "For full ensemble performance, consider upgrading to a hosting plan with more RAM."
                 )

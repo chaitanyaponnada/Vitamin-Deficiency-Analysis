@@ -137,7 +137,8 @@ def signup_user(email: str, password: str, full_name: str, username: str) -> Tup
             user_id=user_id,
             email=email,
             full_name=full_name,
-            username=username
+            username=username,
+            login_provider='email'
         )
         
         if not firestore_success:
@@ -221,7 +222,85 @@ def login_user(email_or_username: str, password: str) -> Tuple[bool, str, Option
         return False, f"Login error: {str(e)}", None
 
 
-def create_user_profile(user_id: str, email: str, full_name: str, username: str) -> bool:
+def login_with_google(id_token: str) -> Tuple[bool, str, Optional[Dict]]:
+    """Authenticate user with Google ID token.
+    
+    Args:
+        id_token: Google ID token from OAuth flow
+        
+    Returns:
+        (success, message, user_data)
+    """
+    config = get_firebase_config()
+    
+    # Demo mode - simulate Google login
+    if not config['api_key']:
+        st.warning("Google Sign-In not available in demo mode. Please configure Firebase.")
+        return False, "Google Sign-In requires Firebase configuration.", None
+    
+    try:
+        # Verify ID token with Firebase
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={config['api_key']}"
+        payload = {
+            'postBody': f'id_token={id_token}&providerId=google.com',
+            'requestUri': 'http://localhost',
+            'returnIdpCredential': True,
+            'returnSecureToken': True
+        }
+        response = requests.post(url, json=payload, timeout=10)
+        data = response.json()
+        
+        if response.status_code != 200:
+            error_msg = data.get('error', {}).get('message', 'Google Sign-In failed')
+            return False, error_msg, None
+        
+        user_id = data.get('localId', '')
+        email = data.get('email', '')
+        display_name = data.get('displayName', email.split('@')[0])
+        
+        # Check if profile exists
+        user_profile = get_user_profile(user_id)
+        
+        if not user_profile:
+            # Create new profile for Google user
+            username = email.split('@')[0].lower()
+            # Ensure username is unique
+            base_username = username
+            counter = 1
+            # In production, you'd check Firestore for uniqueness
+            while False:  # Placeholder for uniqueness check
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            create_user_profile(
+                user_id=user_id,
+                email=email,
+                full_name=display_name,
+                username=username,
+                login_provider='google'
+            )
+            
+            user_profile = {
+                'user_id': user_id,
+                'email': email,
+                'full_name': display_name,
+                'username': username,
+                'login_provider': 'google'
+            }
+        
+        return True, "Google Sign-In successful.", {
+            'user_id': user_id,
+            'email': email,
+            'username': user_profile.get('username', email.split('@')[0]),
+            'full_name': user_profile.get('full_name', display_name),
+            'login_provider': 'google'
+        }
+    
+    except Exception as e:
+        return False, f"Google Sign-In error: {str(e)}", None
+
+
+def create_user_profile(user_id: str, email: str, full_name: str, username: str, login_provider: str = 'email') -> bool:
     """Create user profile in Firestore."""
     config = get_firebase_config()
     
@@ -248,7 +327,7 @@ def create_user_profile(user_id: str, email: str, full_name: str, username: str)
                 'username': {'stringValue': username},
                 'created_at': {'stringValue': datetime.now().isoformat()},
                 'last_login': {'stringValue': datetime.now().isoformat()},
-                'login_provider': {'stringValue': 'email'},
+                'login_provider': {'stringValue': login_provider},
             }
         }
         response = requests.patch(url, json=payload, timeout=10)
