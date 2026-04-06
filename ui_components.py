@@ -1,4 +1,4 @@
-"""UI components and design system for a premium black aesthetic Streamlit app."""
+"""UI components and design system -- glassmorphism dark theme over video background."""
 
 from datetime import datetime
 
@@ -6,158 +6,196 @@ import streamlit as st
 
 
 def inject_global_styles():
-    """Inject app-wide black theme styles and stable layout rules."""
+    """Inject video background, glass-morphism CSS, and Streamlit overrides."""
     st.markdown(
         """
+        <video autoplay loop muted playsinline id="bg-video">
+            <source src="https://res.cloudinary.com/doiceztkc/video/upload/v1769665529/2_hff2at.mp4" type="video/mp4">
+        </video>
+
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
             :root {
-                --bg: #0B0B0F;
-                --surface: #121218;
-                --card: #18181F;
-                --text: #FFFFFF;
+                --bg-dark: transparent;
+                --surface: rgba(20,20,26,0.55);
+                --card: rgba(24,24,32,0.65);
+                --border: rgba(255,255,255,0.08);
+                --text: #F9FAFB;
                 --text-muted: #9CA3AF;
                 --accent: #4F46E5;
-                --border: #242430;
+                --accent-hover: #4338CA;
+                --accent-soft: rgba(79,70,229,0.15);
+                --success: #10B981;
+                --warning: #F59E0B;
+                --error: #EF4444;
             }
 
             * {
-                font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             }
 
+            /* --- Video Background --- */
+            #bg-video {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                z-index: -2;
+            }
+
+            /* --- Hide Streamlit Chrome --- */
             #MainMenu, footer, header {
                 visibility: hidden;
+                height: 0 !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
 
+            /* --- Transparent Containers --- */
             html, body, .stApp, [data-testid="stAppViewContainer"] {
-                background: var(--bg) !important;
+                background: transparent !important;
                 color: var(--text) !important;
             }
 
-            [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {
+            [data-testid="stHeader"],
+            [data-testid="stToolbar"],
+            [data-testid="stSidebar"] {
                 background: transparent !important;
+            }
+
+            [data-testid="stHeader"] {
+                height: 0 !important;
+                min-height: 0 !important;
+                max-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: hidden !important;
             }
 
             .main .block-container {
                 max-width: 1200px !important;
                 margin: 0 auto !important;
-                padding: 24px !important;
+                padding: 0 24px 24px 24px !important;
             }
 
-            .app-shell {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 18px;
-                padding: 16px 20px;
-                margin-bottom: 18px;
+            /* --- Glass Card --- */
+            .glass-card {
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 14px;
+                padding: 20px;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
             }
 
+            /* --- Header --- */
             .app-header {
-                background: var(--surface);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
                 border: 1px solid var(--border);
                 border-radius: 14px;
-                padding: 14px 16px;
-                margin-bottom: 14px;
+                padding: 18px;
+                margin-bottom: 20px;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
             }
 
             .app-logo {
-                font-size: 2rem;
+                font-size: 28px;
                 font-weight: 700;
-                color: var(--text);
-                letter-spacing: -0.02em;
+                letter-spacing: 0.5px;
                 line-height: 1;
+                background: linear-gradient(135deg, #6366F1, #8B5CF6);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
             }
 
             .app-logo-accent {
-                color: var(--accent);
+                background: linear-gradient(135deg, #6366F1, #8B5CF6);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
             }
 
+            /* --- Avatar Button --- */
             .profile-avatar-btn button {
                 width: 40px !important;
                 min-width: 40px !important;
                 height: 40px !important;
-                border-radius: 999px !important;
-                border: 1px solid var(--border) !important;
-                background: var(--card) !important;
-                color: var(--text) !important;
+                border-radius: 10px !important;
+                border: 1px solid rgba(0,0,0,0.12) !important;
+                background: rgba(55,65,81,0.25) !important;
+                color: #374151 !important;
                 padding: 0 !important;
-                font-weight: 700 !important;
+                font-weight: 600 !important;
+                backdrop-filter: blur(12px) !important;
+                -webkit-backdrop-filter: blur(12px) !important;
+                transition: all 0.2s ease !important;
             }
 
             .profile-avatar-btn button:hover {
                 border-color: var(--accent) !important;
-                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+                background: rgba(99,102,241,0.15) !important;
+                color: #4F46E5 !important;
+                box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+                transform: translateY(-1px);
             }
 
-            .profile-dropdown {
-                background: var(--card);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 16px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-                margin-top: 8px;
-            }
-
-            .profile-name {
-                font-size: 0.98rem;
-                font-weight: 600;
-                color: var(--text);
-                margin-bottom: 2px;
-            }
-
-            .profile-email {
-                font-size: 0.85rem;
-                color: var(--text-muted);
-                margin-bottom: 12px;
-            }
-
-            .profile-divider {
-                border-top: 1px solid var(--border);
-                margin: 10px 0 12px 0;
-            }
-
-            .nav-wrap {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 8px 12px;
+            /* --- Navigation Links --- */
+            div[role="radiogroup"] {
+                display: flex;
+                justify-content: center;
+                gap: 28px;
+                flex-wrap: wrap;
+                padding: 10px 0;
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                border-bottom: 1px solid var(--border);
                 margin-bottom: 16px;
             }
 
-            div[role="radiogroup"] {
-                justify-content: center;
-                gap: 8px;
-                flex-wrap: wrap;
+            div[role="radiogroup"] > label {
+                background: transparent !important;
+                border: none;
+                border-radius: 0;
+                color: #6B7280 !important;
+                padding: 8px 4px;
+                font-size: 15px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                border-bottom: 2px solid transparent;
             }
 
-            div[role="radiogroup"] > label {
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 10px;
-                color: var(--text-muted);
-                padding: 8px 14px;
-                transition: all 0.18s ease;
+            div[role="radiogroup"] > label > div:first-child {
+                display: none !important;
             }
 
             div[role="radiogroup"] > label:hover {
-                color: var(--text);
-                background: #161622;
-                border-color: var(--border);
+                color: #374151 !important;
+                background: transparent !important;
+                border-bottom-color: rgba(99,102,241,0.4);
             }
 
             div[role="radiogroup"] > label:has(input:checked) {
-                color: var(--text);
-                border-color: var(--accent);
-                box-shadow: inset 0 -2px 0 0 var(--accent);
-                background: #161622;
+                color: #374151 !important;
+                background: transparent !important;
+                border-bottom: 2px solid #6366F1;
             }
 
+            /* --- Page Headings --- */
             .page-title {
                 font-size: 2.2rem;
                 font-weight: 700;
                 margin-bottom: 4px;
-                color: var(--text);
+                color: #9CA3AF;
                 letter-spacing: -0.02em;
             }
 
@@ -167,22 +205,26 @@ def inject_global_styles():
                 margin-bottom: 1.3rem;
             }
 
+            /* --- Stat Cards --- */
             .stat-card {
                 text-align: center;
-                background: var(--card);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
                 border: 1px solid var(--border);
                 border-radius: 14px;
                 padding: 1.4rem 1rem;
-                transition: border-color 0.2s ease, transform 0.2s ease;
+                transition: transform 0.2s ease, border-color 0.2s ease;
                 min-height: 150px;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
             }
 
             .stat-card:hover {
-                border-color: #2f2f3f;
-                transform: translateY(-1px);
+                border-color: rgba(255,255,255,0.14);
+                transform: translateY(-3px);
             }
 
             .stat-value {
@@ -201,39 +243,7 @@ def inject_global_styles():
                 text-transform: uppercase;
             }
 
-            .loading-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                background: var(--card);
-                border: 1px solid var(--border);
-                border-radius: 14px;
-                padding: 2.2rem;
-                margin: 1rem 0;
-            }
-
-            .loading-spinner {
-                width: 48px;
-                height: 48px;
-                border-radius: 999px;
-                border: 3px solid #2b2b38;
-                border-top-color: var(--accent);
-                animation: ui-spin 1s linear infinite;
-            }
-
-            .loading-text {
-                margin-top: 12px;
-                color: var(--text);
-                font-weight: 600;
-            }
-
-            .loading-subtext {
-                color: var(--text-muted);
-                font-size: 0.9rem;
-                margin-top: 4px;
-            }
-
+            /* --- Center Loader Overlay --- */
             .center-loader-wrap {
                 position: fixed;
                 inset: 0;
@@ -241,24 +251,29 @@ def inject_global_styles():
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                background: rgba(11, 11, 15, 0.72);
+                background: rgba(0,0,0,0.72);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
             }
 
             .center-loader-card {
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
                 background: var(--card);
                 border: 1px solid var(--border);
                 border-radius: 14px;
-                padding: 1.2rem 1.6rem;
-                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+                padding: 1.4rem 1.8rem;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.45);
+                text-align: center;
             }
 
             .center-loader {
-                width: 34px;
-                height: 34px;
-                border-radius: 999px;
-                border: 3px solid #2b2b38;
-                border-top-color: var(--accent);
-                animation: ui-spin 1s linear infinite;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                border: 3px solid rgba(255,255,255,0.2);
+                border-top: 3px solid var(--accent);
+                animation: spin 1s linear infinite;
                 margin: 0 auto;
             }
 
@@ -268,69 +283,293 @@ def inject_global_styles():
                 font-weight: 500;
             }
 
-            .stButton > button,
+            /* --- Buttons --- */
+            .stButton > button[kind="primary"] {
+                background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
+                border: none !important;
+                border-radius: 10px !important;
+                color: var(--text) !important;
+                font-weight: 500 !important;
+                padding: 10px 18px !important;
+                transition: all 0.2s ease !important;
+            }
+
+            .stButton > button[kind="primary"]:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 18px rgba(79,70,229,0.35);
+            }
+
+            .stButton > button:not([kind="primary"]),
             .stDownloadButton > button {
                 border-radius: 10px !important;
                 border: 1px solid var(--border) !important;
                 background: var(--card) !important;
                 color: var(--text) !important;
-                font-weight: 600 !important;
+                font-weight: 500 !important;
+                padding: 10px 18px !important;
+                transition: all 0.2s ease !important;
+                backdrop-filter: blur(12px) !important;
+                -webkit-backdrop-filter: blur(12px) !important;
             }
 
-            .stButton > button[kind="primary"] {
-                background: var(--accent) !important;
-                border-color: var(--accent) !important;
-                color: var(--text) !important;
-            }
-
-            .stButton > button:hover,
+            .stButton > button:not([kind="primary"]):hover,
             .stDownloadButton > button:hover {
-                border-color: #343449 !important;
+                border-color: rgba(255,255,255,0.14) !important;
+                transform: translateY(-1px);
             }
 
+            /* --- Form Inputs --- */
             .stTextInput input,
             .stTextArea textarea,
             .stSelectbox [data-baseweb="select"] > div,
             .stFileUploader {
+                backdrop-filter: blur(12px) !important;
+                -webkit-backdrop-filter: blur(12px) !important;
                 background: var(--card) !important;
                 color: var(--text) !important;
                 border-color: var(--border) !important;
+                border-radius: 10px !important;
             }
 
-            .stMarkdown, .stCaption, p, label {
+            /* --- Text --- */
+            .stMarkdown, .stCaption {
                 color: var(--text) !important;
             }
 
+            p, label {
+                color: var(--text-muted) !important;
+            }
+
+            div[role="radiogroup"] > label {
+                color: #6B7280 !important;
+            }
+
+            div[role="radiogroup"] > label:hover {
+                color: #374151 !important;
+            }
+
+            div[role="radiogroup"] > label:has(input:checked) {
+                color: #374151 !important;
+            }
+
+            /* --- Metrics --- */
             .stMetric {
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
                 background: var(--card);
                 border: 1px solid var(--border);
                 border-radius: 12px;
                 padding: 10px;
             }
 
+            /* --- Expanders --- */
             div[data-testid="stExpander"] {
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
                 background: var(--card);
                 border: 1px solid var(--border);
                 border-radius: 12px;
             }
 
-            @keyframes ui-spin {
-                to {
-                    transform: rotate(360deg);
-                }
+            /* --- Modal --- */
+            .modal-content {
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                background: rgba(20,20,26,0.85);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 14px;
+                padding: 24px;
+                box-shadow: 0 20px 45px rgba(0,0,0,0.45);
+                color: #FFFFFF;
             }
 
+            /* --- Profile Dropdown --- */
+            .profile-dropdown-card {
+                position: relative;
+                width: 220px;
+                float: right;
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 8px 0;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                animation: dropdownFade 0.18s ease-out;
+                margin-bottom: 8px;
+            }
+
+            .profile-dropdown-card .dropdown-item button {
+                width: 100% !important;
+                text-align: left !important;
+                background: transparent !important;
+                border: none !important;
+                border-radius: 0 !important;
+                color: var(--text-muted) !important;
+                font-weight: 500 !important;
+                padding: 10px 18px !important;
+                transition: all 0.15s ease !important;
+            }
+
+            .profile-dropdown-card .dropdown-item button:hover {
+                background: var(--accent-soft) !important;
+                color: var(--text) !important;
+            }
+
+            @keyframes dropdownFade {
+                from { opacity: 0; transform: translateY(-6px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+
+            /* --- Spinner Animation --- */
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            /* --- Section Card --- */
+            .section-card {
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 24px;
+                margin-top: 24px;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+            }
+
+            .section-card-title {
+                font-size: 1.15rem;
+                font-weight: 600;
+                color: var(--text);
+                margin-bottom: 12px;
+            }
+
+            /* --- Upload Dropzone --- */
+            .upload-dropzone {
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
+                border: 2px dashed rgba(255,255,255,0.12);
+                border-radius: 14px;
+                padding: 48px 24px;
+                text-align: center;
+                transition: border-color 0.2s ease;
+                margin: 16px 0;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+            }
+
+            .upload-dropzone:hover {
+                border-color: var(--accent);
+            }
+
+            .upload-dropzone-title {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: var(--text);
+                margin-bottom: 4px;
+            }
+
+            .upload-dropzone-sub {
+                font-size: 0.9rem;
+                color: var(--text-muted);
+            }
+
+            /* --- Glass Divider --- */
+            .glass-divider {
+                border: none;
+                border-top: 1px solid var(--border);
+                margin: 20px 0;
+            }
+
+            /* --- Result Card --- */
+            .result-card {
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 20px;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+            }
+
+            /* --- About Section --- */
+            .about-section {
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                background: rgba(18,18,26,0.75);
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 24px;
+                margin-bottom: 20px;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+            }
+
+            .about-section-title {
+                font-size: 1.15rem;
+                font-weight: 600;
+                color: var(--text);
+                margin-bottom: 10px;
+            }
+
+            .about-section p, .about-section li {
+                color: var(--text-muted) !important;
+                line-height: 1.7;
+            }
+
+            /* --- Mobile Responsive --- */
             @media (max-width: 900px) {
                 .main .block-container {
-                    padding: 14px !important;
+                    padding: 12px !important;
                 }
-
+                .app-header {
+                    padding: 12px;
+                    margin-bottom: 14px;
+                }
                 .app-logo {
-                    font-size: 1.7rem;
+                    font-size: 1.5rem;
                 }
-
                 .page-title {
+                    font-size: 1.6rem;
+                }
+                .page-subtitle {
+                    font-size: 0.88rem;
+                }
+                .stat-card {
+                    min-height: 100px;
+                    padding: 0.8rem 0.6rem;
+                }
+                .stat-value {
                     font-size: 1.8rem;
+                }
+                .stat-label {
+                    font-size: 0.78rem;
+                }
+                .section-card {
+                    padding: 14px;
+                    margin-top: 14px;
+                }
+                .upload-dropzone {
+                    padding: 28px 14px;
+                }
+                .result-card {
+                    padding: 14px;
+                }
+                .about-section {
+                    padding: 16px;
+                    margin-bottom: 14px;
+                }
+                div[role="radiogroup"] {
+                    gap: 16px;
+                    padding: 8px 0;
+                }
+                div[role="radiogroup"] > label {
+                    padding: 6px 2px;
+                    font-size: 0.8rem;
+                }
+                .center-loader-card {
+                    padding: 1rem 1.2rem;
                 }
             }
         </style>
@@ -340,13 +579,13 @@ def inject_global_styles():
 
 
 def render_header(user_data=None):
-    """Render structured header with left logo and top-right avatar button."""
+    """Render glass header with logo and avatar button."""
     user_data = user_data or {}
     full_name = user_data.get("full_name", "User")
     initial = (full_name[0].upper() if full_name else "U")
 
     st.markdown('<div class="app-header">', unsafe_allow_html=True)
-    logo_col, avatar_col = st.columns([12, 1])
+    logo_col, avatar_col = st.columns([10, 1])
     with logo_col:
         st.markdown(
             '<div class="app-logo">Vitamin<span class="app-logo-accent">AI</span></div>',
@@ -354,57 +593,44 @@ def render_header(user_data=None):
         )
     with avatar_col:
         st.markdown('<div class="profile-avatar-btn">', unsafe_allow_html=True)
-        if st.button(initial, key="profile_avatar_btn", help="Account"):
+        if st.button(initial, key="profile_avatar_btn", help="Profile"):
             st.session_state.show_profile_menu = not st.session_state.get("show_profile_menu", False)
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_profile_dropdown(user_data):
-    """Render profile dropdown card below the avatar in a stable right column."""
+    """Render glass dropdown with Profile, History, and Logout."""
     if not st.session_state.get("show_profile_menu", False):
         return
 
-    full_name = user_data.get("full_name", "User")
-    email = user_data.get("email", "")
+    spacer, dropdown_col = st.columns([9, 3])
+    with dropdown_col:
+        st.markdown('<div class="profile-dropdown-card">', unsafe_allow_html=True)
 
-    left, right = st.columns([9, 3])
-    with right:
-        st.markdown(
-            f"""
-            <div class="profile-dropdown">
-                <div class="profile-name">{full_name}</div>
-                <div class="profile-email">{email}</div>
-                <div class="profile-divider"></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if st.button("Profile", key="goto_profile", use_container_width=True):
+        st.markdown('<div class="dropdown-item">', unsafe_allow_html=True)
+        if st.button("Profile", key="dd_profile"):
             st.session_state.show_profile_menu = False
-            st.session_state.active_tab = "profile"
+            st.session_state.switch_to_profile = True
             st.rerun()
-        if st.button("History", key="goto_history", use_container_width=True):
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="dropdown-item">', unsafe_allow_html=True)
+        if st.button("History", key="dd_history"):
             st.session_state.show_profile_menu = False
-            st.session_state.active_nav = "History"
+            st.session_state.switch_to_profile = True
             st.rerun()
-        if st.button("Logout", key="do_logout", use_container_width=True):
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="dropdown-item">', unsafe_allow_html=True)
+        if st.button("Logout", key="do_logout"):
             st.session_state.clear()
+            st.session_state._needs_cookie_delete = True
+            st.session_state._cookie_checked = True
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-
-def render_loading_animation(message="Loading", submessage="Please wait..."):
-    """Render centered loading card."""
-    st.markdown(
-        f"""
-        <div class="loading-container">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">{message}</div>
-            <div class="loading-subtext">{submessage}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_page_header(title, subtitle=""):
@@ -449,18 +675,7 @@ def show_modal(title, message, level="error", key_prefix="modal"):
     @st.dialog(title)
     def _modal():
         st.markdown(
-            f"""
-            <div style="
-                background:#18181F;
-                border:1px solid #242430;
-                border-radius:14px;
-                padding:24px;
-                box-shadow:0 20px 45px rgba(0,0,0,0.45);
-                color:#FFFFFF;
-            ">
-                {message}
-            </div>
-            """,
+            f'<div class="modal-content">{message}</div>',
             unsafe_allow_html=True,
         )
         st.button("Close", key=f"{key_prefix}_close")

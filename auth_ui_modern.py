@@ -15,61 +15,94 @@ from firebase_auth import (
     login_with_google,
     signup_user,
 )
+from cookie_manager import set_auth_cookie
 from ui_components import show_error_modal, show_info_modal
 
 
 def inject_auth_styles():
-    """Inject black-theme auth styles."""
+    """Inject glassmorphism auth styles."""
     st.markdown(
         """
         <style>
             .auth-wrap {
-                max-width: 520px;
-                margin: 30px auto;
-                padding: 22px;
-                background: #121218;
-                border: 1px solid #242430;
-                border-radius: 18px;
+                max-width: 420px;
+                margin: 40px auto;
+                padding: 32px;
+                background: rgba(20, 20, 26, 0.75);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 16px;
             }
 
             .auth-logo {
                 text-align: center;
                 color: #ffffff;
-                font-size: 3rem;
+                font-size: 2.4rem;
                 font-weight: 700;
-                letter-spacing: -0.02em;
-                margin-bottom: 10px;
+                letter-spacing: 0.5px;
+                margin-bottom: 8px;
             }
 
             .auth-logo-accent {
-                color: #4F46E5;
+                background: linear-gradient(135deg, #6366F1, #8B5CF6);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
             }
 
             .auth-title {
                 text-align: center;
                 color: #ffffff;
-                font-size: 2rem;
+                font-size: 1.6rem;
                 font-weight: 700;
-                margin-bottom: 6px;
+                margin-bottom: 4px;
             }
 
             .auth-subtitle {
                 text-align: center;
                 color: #9CA3AF;
-                margin-bottom: 18px;
+                margin-bottom: 16px;
+                font-size: 0.9rem;
             }
 
             .auth-divider {
                 text-align: center;
-                color: #9CA3AF;
+                color: rgba(255, 255, 255, 0.35);
                 margin: 12px 0;
+                font-size: 0.82rem;
+                letter-spacing: 0.04em;
             }
 
             .auth-footer-note {
                 text-align: center;
                 color: #9CA3AF;
-                font-size: 0.88rem;
-                margin-top: 14px;
+                font-size: 0.85rem;
+                margin-top: 12px;
+            }
+
+            .auth-wrap .stButton > button {
+                height: 36px !important;
+                min-height: 36px !important;
+                border-radius: 8px !important;
+                font-size: 14px !important;
+                padding: 0 16px !important;
+            }
+
+            .auth-wrap .stTextInput input {
+                height: 36px !important;
+                min-height: 36px !important;
+                font-size: 14px !important;
+                padding: 6px 12px !important;
+            }
+
+            .stTextInput label,
+            .stTextInput label p,
+            .stTextArea label,
+            .stTextArea label p,
+            [data-testid="stTextInput"] label,
+            [data-testid="stTextInput"] label p {
+                color: #9CA3AF !important;
             }
         </style>
         """,
@@ -89,6 +122,7 @@ def _consume_google_token_if_present():
     st.query_params.clear()
 
     if success:
+        set_auth_cookie(user_data["user_id"])
         st.session_state.is_authenticated = True
         st.session_state.user_data = user_data
         st.session_state.auth_page = None
@@ -130,13 +164,17 @@ def _render_google_signin_button(component_key: str):
         <div style="display:flex;justify-content:center;">
             <button id="{dom_id}" style="
                 width:100%;
-                border-radius:10px;
-                border:1px solid #242430;
-                background:#18181F;
+                height:36px;
+                border-radius:8px;
+                border:1px solid rgba(255,255,255,0.15);
+                background:rgba(255,255,255,0.05);
+                backdrop-filter:blur(12px);
                 color:#FFFFFF;
-                font-weight:600;
-                padding:10px 14px;
+                font-weight:500;
+                font-size:14px;
+                padding:0 16px;
                 cursor:pointer;
+                transition:background 0.2s;
             ">Continue with Google</button>
         </div>
         <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -198,10 +236,10 @@ def show_auth_menu():
 
     col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
-        if st.button("Sign In", key="auth_signin", use_container_width=True, type="primary"):
+        if st.button("Sign In", key="auth_signin", width='stretch', type="primary"):
             st.session_state.auth_page = "login"
             st.rerun()
-        if st.button("Create Account", key="auth_signup", use_container_width=True):
+        if st.button("Create Account", key="auth_signup", width='stretch'):
             st.session_state.auth_page = "signup"
             st.rerun()
         st.markdown('<div class="auth-divider">OR</div>', unsafe_allow_html=True)
@@ -230,12 +268,13 @@ def show_login_page():
         email_or_username = st.text_input("Email or Username", key="login_email")
         password = st.text_input("Password", type="password", key="login_password")
 
-        if st.button("Sign In", key="do_login", use_container_width=True, type="primary"):
+        if st.button("Sign In", key="do_login", width='stretch', type="primary"):
             if not email_or_username or not password:
                 show_error_modal("Authentication Error", "Please fill in all fields.", key_prefix="login_missing")
             else:
                 success, message, user_data = login_user(email_or_username, password)
                 if success:
+                    set_auth_cookie(user_data["user_id"])
                     st.session_state.is_authenticated = True
                     st.session_state.user_data = user_data
                     st.session_state.auth_page = None
@@ -248,11 +287,11 @@ def show_login_page():
 
         a, b = st.columns(2)
         with a:
-            if st.button("Back", key="login_back", use_container_width=True):
+            if st.button("Back", key="login_back", width='stretch'):
                 st.session_state.auth_page = "menu"
                 st.rerun()
         with b:
-            if st.button("Create Account", key="to_signup", use_container_width=True):
+            if st.button("Create Account", key="to_signup", width='stretch'):
                 st.session_state.auth_page = "signup"
                 st.rerun()
 
@@ -282,7 +321,7 @@ def show_signup_page():
         password = st.text_input("Password", type="password", key="signup_password")
         confirm_password = st.text_input("Confirm Password", type="password", key="signup_confirm")
 
-        if st.button("Create Account", key="do_signup", use_container_width=True, type="primary"):
+        if st.button("Create Account", key="do_signup", width='stretch', type="primary"):
             if not all([full_name, email, username, password, confirm_password]):
                 show_error_modal("Sign Up Error", "Please fill in all fields.", key_prefix="signup_missing")
             elif password != confirm_password:
@@ -310,11 +349,11 @@ def show_signup_page():
 
         a, b = st.columns(2)
         with a:
-            if st.button("Back", key="signup_back", use_container_width=True):
+            if st.button("Back", key="signup_back", width='stretch'):
                 st.session_state.auth_page = "menu"
                 st.rerun()
         with b:
-            if st.button("Sign In", key="to_login", use_container_width=True):
+            if st.button("Sign In", key="to_login", width='stretch'):
                 st.session_state.auth_page = "login"
                 st.rerun()
 

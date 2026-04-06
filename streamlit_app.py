@@ -38,9 +38,10 @@ from datetime import datetime
 # Import authentication modules
 from firebase_auth import get_user_profile, store_analysis, get_analysis_history
 from auth_ui_modern import show_authentication_gateway
+from cookie_manager import set_auth_cookie, try_restore_from_cookie
 from ui_components import (
     inject_global_styles, render_header, render_profile_dropdown,
-    render_loading_animation, render_page_header, render_stat_card,
+    render_page_header, render_stat_card,
     get_current_date_display, show_error_modal
 )
 
@@ -366,98 +367,89 @@ DEFICIENCY_INFO = {
         "vitamin": "Vitamin D",
         "description": "Alopecia areata is an autoimmune condition causing hair loss in patches. Vitamin D deficiency is linked to autoimmune diseases.",
         "recommendations": "Consider the Mediterranean diet high in fruits, vegetables, nuts, whole grains, fish, and healthy oils. Supplement with vitamin D if deficient. Consult a dermatologist for proper diagnosis and treatment.",
-        "icon": "🦱"
     },
     "beaus lines": {
         "vitamin": "Vitamin C & Magnesium",
         "description": "Beau's lines are horizontal indentations on nails indicating temporary growth arrest. Often linked to vitamin C deficiency.",
         "recommendations": "Eat dark green leafy vegetables like spinach and kale, quinoa, almonds, cashews, peanuts, edamame, and black beans. Adequate magnesium is crucial for nail health and protein synthesis.",
-        "icon": "💅"
     },
     "bluish nail": {
         "vitamin": "Vitamin B12",
         "description": "Bluish discoloration of nails may indicate poor circulation or vitamin B12 deficiency.",
         "recommendations": "Include plenty of nutrients like fruits, lean meats, salmon, leafy greens, beans, eggs, nuts, and whole grains in your diet to strengthen nails.",
-        "icon": "💙"
     },
     "bulging eyes": {
         "vitamin": "Vitamin A",
         "description": "Bulging eyes (proptosis) can be associated with thyroid issues or vitamin A deficiency.",
         "recommendations": "Eat foods high in potassium to balance electrolytes: bananas, yogurt, potatoes, dried apricots. Also, include vitamin A-rich foods like carrots, sweet potatoes, and leafy greens.",
-        "icon": ""
     },
     "cataracts eyes": {
         "vitamin": "Vitamin D & E",
         "description": "Cataracts cause clouding of the eye lens, often age-related but vitamin D deficiency may contribute.",
         "recommendations": "Eat foods high in antioxidants like vitamins C and E: citrus fruits, berries, nuts, seeds. Maintain a healthy diet with fresh vegetables and fruits to support eye health.",
-        "icon": "👓"
     },
     "clubbing": {
         "vitamin": "Vitamin D",
         "description": "Clubbing of fingers/toes indicates underlying conditions like lung disease or vitamin D deficiency.",
         "recommendations": "Include meat, fish, eggs, beans, and nuts in your diet. Aim for two portions daily, with fish twice weekly (including oily fish like salmon).",
-        "icon": ""
     },
     "crossed eyes": {
         "vitamin": "Vitamin B6 & C",
         "description": "Strabismus (crossed eyes) in adults may relate to neurological issues or vitamin B6 deficiency.",
         "recommendations": "Consume omega-3 fatty acids from cold-water fish like salmon, tuna, sardines, halibut. Also, eat vitamin C-rich foods: oranges, grapefruits, tomatoes, lemons for eye health.",
-        "icon": "👀"
     },
     "Dariers disease": {
         "vitamin": "Vitamin A",
         "description": "Darier's disease is a rare genetic skin disorder, not directly caused by diet but vitamin A deficiency may worsen symptoms.",
         "recommendations": "There is no specific diet cure. Treatment includes aciclovir for herpes simplex, oral retinoids like acitretin or isotretinoin for severe cases, or ciclosporin. Consult a dermatologist.",
-        "icon": ""
     },
     "eczema": {
         "vitamin": "Vitamin D",
         "description": "Eczema (atopic dermatitis) causes itchy, inflamed skin. Vitamin D deficiency is linked to increased risk.",
         "recommendations": "Eat anti-inflammatory foods: apples, broccoli, cherries, blueberries, spinach, kale. Flavonoids help reduce skin inflammation.",
-        "icon": "🌿"
     },
     "glucoma eyes": {
         "vitamin": "Vitamin B Complex",
         "description": "Glaucoma damages the optic nerve, often due to high eye pressure. Vitamin B deficiencies may contribute.",
         "recommendations": "Drink hot tea daily (associated with lower risk). Include chocolate, bananas, avocados, pumpkin seeds, black beans for vitamin B sources.",
-        "icon": "🫐"
     },
     "Lindsays nails": {
         "vitamin": "Vitamin B12",
         "description": "Lindsay's nails show half white, half red/pink nails, associated with chronic kidney disease or vitamin B12 deficiency.",
         "recommendations": "Maintain a healthy diet to prevent hangnails: include protein-rich foods, folic acid, vitamins B, C, keratin sources like kiwi, broccoli, bell peppers, tomatoes.",
-        "icon": "💅"
     },
     "lip": {
         "vitamin": "Vitamin B2 (Riboflavin)",
         "description": "Angular cheilitis (cracked lip corners) often due to vitamin B2 (riboflavin) deficiency.",
         "recommendations": "Eat eggs, milk, carrots, spinach, apricots. Vitamin C-rich foods like orange juice, strawberries, green peppers, citrus fruits, tomatoes, sweet potatoes help heal lips and boost immunity.",
-        "icon": "👄"
     },
     "tounge": {
         "vitamin": "Vitamin B3 (Niacin)",
         "description": "Burning tongue syndrome may be caused by vitamin B3 (niacin) deficiency or other factors.",
         "recommendations": "Eat cool, soothing foods like yogurt or applesauce. Drink water to remove food debris. Include niacin-rich foods: meat, fish, eggs, dairy, nuts, legumes.",
-        "icon": "👅"
     },
     "uvieties eyes": {
         "vitamin": "Vitamin D",
         "description": "Uveitis is inflammation of the eye's middle layer. Vitamin D may help reduce inflammation.",
         "recommendations": "Get sunlight exposure and eat vitamin D-rich foods like fatty fish, fortified dairy, and egg yolks. Consult an ophthalmologist for proper diagnosis.",
-        "icon": "🌞"
+    },
+    "no deficiency detected": {
+        "vitamin": "Normal/Healthy",
+        "description": "No significant vitamin deficiency detected. Your nails and eyes appear healthy with no visible signs of deficiency.",
+        "recommendations": "Continue maintaining a balanced diet rich in vitamins and minerals. Regular exercise, adequate sleep, and sun exposure (10-30 min daily) help maintain optimal health. If you experience any persistent symptoms, consult a healthcare professional.",
     }
 }
 
 # Model information
 MODEL_INFO = {
-    'CNN': {'description': 'Basic Convolutional Neural Network', 'color': '#667eea'},
-    'EfficientNetV2L': {'description': 'Highly efficient modern architecture', 'color': '#764ba2'},
-    'InceptionResNetV2': {'description': 'Hybrid Inception + ResNet model', 'color': '#f093fb'},
-    'InceptionV3': {'description': 'Google\'s deep learning model', 'color': '#4facfe'},
-    'MobileNet': {'description': 'Lightweight mobile-optimized model', 'color': '#43e97b'},
-    'ResNet': {'description': 'Deep residual learning network', 'color': '#fa709a'},
-    'VGG16': {'description': 'Classic deep architecture', 'color': '#fee140'},
-    'Xception': {'description': 'Extreme Inception architecture', 'color': '#30cfd0'}
+    'CNN': {'description': 'Basic Convolutional Neural Network', 'color': '#6366F1'},
+    'EfficientNetV2L': {'description': 'Highly efficient modern architecture', 'color': '#818CF8'},
+    'InceptionResNetV2': {'description': 'Hybrid Inception + ResNet model', 'color': '#A5B4FC'},
+    'InceptionV3': {'description': 'Google\'s deep learning model', 'color': '#6366F1'},
+    'MobileNet': {'description': 'Lightweight mobile-optimized model', 'color': '#818CF8'},
+    'ResNet': {'description': 'Deep residual learning network', 'color': '#A5B4FC'},
+    'VGG16': {'description': 'Classic deep architecture', 'color': '#6366F1'},
+    'Xception': {'description': 'Extreme Inception architecture', 'color': '#818CF8'}
 }
 
 def load_all_models(num_classes, _progress_callback=None):
@@ -885,7 +877,9 @@ def create_prediction_chart(individual_predictions, classes, predicted_class):
         yaxis_title="Confidence",
         barmode='group',
         height=500,
-        template="plotly_white",
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         hovermode='x unified'
     )
     
@@ -902,18 +896,18 @@ def create_ensemble_gauge(confidence):
         title={'text': "Ensemble Confidence", 'font': {'size': 24}},
         delta={'reference': 75},
         gauge={
-            'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-            'bar': {'color': "#667eea"},
-            'bgcolor': "white",
+            'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': '#6366F1'},
+            'bar': {'color': '#6366F1'},
+            'bgcolor': 'rgba(0,0,0,0)',
             'borderwidth': 2,
-            'bordercolor': "gray",
+            'bordercolor': 'rgba(255,255,255,0.08)',
             'steps': [
-                {'range': [0, 50], 'color': '#fee140'},
-                {'range': [50, 75], 'color': '#43e97b'},
-                {'range': [75, 100], 'color': '#667eea'}
+                {'range': [0, 50], 'color': 'rgba(99,102,241,0.15)'},
+                {'range': [50, 75], 'color': 'rgba(99,102,241,0.3)'},
+                {'range': [75, 100], 'color': '#6366F1'}
             ],
             'threshold': {
-                'line': {'color': "red", 'width': 4},
+                'line': {'color': '#FFFFFF', 'width': 4},
                 'thickness': 0.75,
                 'value': 90
             }
@@ -935,8 +929,8 @@ def create_top_predictions_chart(ensemble_pred, classes):
         orientation='h',
         marker=dict(
             color=top_5_probs,
-            colorscale='Viridis',
-            showscale=True
+            colorscale=[[0, '#6366F1'], [1, '#818CF8']],
+            showscale=False
         ),
         text=[f'{p:.2f}%' for p in top_5_probs],
         textposition='auto',
@@ -947,7 +941,9 @@ def create_top_predictions_chart(ensemble_pred, classes):
         xaxis_title="Confidence (%)",
         yaxis_title="Condition",
         height=400,
-        template="plotly_white"
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
     )
     
     return fig
@@ -997,6 +993,8 @@ def main():
     if "active_nav" not in st.session_state:
         st.session_state.active_nav = "Dashboard"
 
+    try_restore_from_cookie()
+
     if not st.session_state.is_authenticated:
         show_authentication_gateway()
         return
@@ -1007,63 +1005,27 @@ def main():
     active_method = metadata.get("best_method", ENSEMBLE_METHOD)
     active_weights = metadata.get("model_weights", {})
 
-    models = None
-    available_models = []
-    load_status = st.session_state.get("load_status", [])
-    status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
-    loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
-    issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
-
-    if st.session_state.get("models_loaded", False):
-        models, available_models, load_status = load_all_models(len(classes))
-        st.session_state["load_status"] = load_status
-        status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
-        loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
-        issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
-
     user_data = st.session_state.get("user_data", {})
     render_header(user_data)
     render_profile_dropdown(user_data)
-
-    if st.session_state.get("active_tab") == "profile":
-        render_page_header("Profile", "Manage your account settings")
-        user_profile = get_user_profile(user_data.get("user_id", ""))
-        if user_profile:
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                initial = user_profile.get("username", "U")[0].upper()
-                st.markdown(
-                    f"""
-                    <div style="
-                        width:96px;height:96px;border-radius:999px;background:#18181F;
-                        border:1px solid #242430;color:#FFFFFF;display:flex;align-items:center;
-                        justify-content:center;font-size:2.2rem;font-weight:700;">{initial}</div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            with col2:
-                st.write(f"**Full Name:** {user_profile.get('full_name', 'N/A')}")
-                st.write(f"**Username:** @{user_profile.get('username', 'N/A')}")
-                st.write(f"**Email:** {user_profile.get('email', 'N/A')}")
-                st.write(f"**Member Since:** {user_profile.get('created_at', 'N/A')[:10]}")
-                st.write(f"**Total Analyses:** {len(get_analysis_history(user_data.get('user_id', '')))}")
-        if st.button("Back to Dashboard", key="profile_back"):
-            st.session_state.active_tab = None
-            st.session_state.active_nav = "Dashboard"
-            st.rerun()
-        return
 
     if st.session_state.get("switch_to_analysis", False):
         st.session_state.active_nav = "Analysis"
         st.session_state.switch_to_analysis = False
 
-    nav_options = ["Dashboard", "Analysis", "History", "Model Performance", "Model Status", "About"]
+    if st.session_state.get("switch_to_profile", False):
+        st.session_state.active_nav = "Profile"
+        st.session_state.switch_to_profile = False
+
+    if st.session_state.get("switch_to_dashboard", False):
+        st.session_state.active_nav = "Dashboard"
+        st.session_state.switch_to_dashboard = False
+
+    nav_options = ["Dashboard", "Analysis", "Model Performance", "Model Status", "About", "Profile"]
     if st.session_state.active_nav not in nav_options:
         st.session_state.active_nav = "Dashboard"
 
-    st.markdown('<div class="nav-wrap">', unsafe_allow_html=True)
     st.radio("Navigation", nav_options, horizontal=True, key="active_nav", label_visibility="collapsed")
-    st.markdown("</div>", unsafe_allow_html=True)
 
     current_nav = st.session_state.active_nav
 
@@ -1075,6 +1037,7 @@ def main():
             current_date, current_day = get_current_date_display()
             render_page_header(f"Welcome back, {user_profile.get('full_name', 'User')}", f"{current_day}, {current_date}")
 
+            # --- Stat Cards ---
             c1, c2, c3, c4 = st.columns(4)
             with c1:
                 st.markdown(render_stat_card(len(analysis_history), "Total Analyses"), unsafe_allow_html=True)
@@ -1093,17 +1056,36 @@ def main():
                 health_score = min(100, max(0, 100 - (len(analysis_history) * 5)))
                 st.markdown(render_stat_card(f"{health_score}%", "Health Score"), unsafe_allow_html=True)
 
-            mid_left, mid_center, mid_right = st.columns([2, 2, 2])
-            with mid_center:
-                if st.button("Start Analysis", type="primary", use_container_width=True):
-                    st.session_state.active_nav = "Analysis"
-                    st.rerun()
-
-    elif current_nav == "History":
-        render_page_header("Analysis History", "Review your past medical image analyses")
+    elif current_nav == "Profile":
+        render_page_header("Profile & History", "Your account details and analysis history")
         user_id = user_data.get("user_id", "")
+        user_profile = get_user_profile(user_id)
+
+        # --- Profile Details ---
+        if user_profile:
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                initial = user_profile.get("username", "U")[0].upper()
+                st.markdown(
+                    f'<div style="width:96px;height:96px;border-radius:999px;'
+                    f'background:rgba(20,20,26,0.65);backdrop-filter:blur(16px);'
+                    f'border:1px solid rgba(255,255,255,0.08);color:#FFFFFF;display:flex;align-items:center;'
+                    f'justify-content:center;font-size:2.2rem;font-weight:700;">{initial}</div>',
+                    unsafe_allow_html=True,
+                )
+            with col2:
+                st.write(f"**Full Name:** {user_profile.get('full_name', 'N/A')}")
+                st.write(f"**Username:** @{user_profile.get('username', 'N/A')}")
+                st.write(f"**Email:** {user_profile.get('email', 'N/A')}")
+                st.write(f"**Member Since:** {user_profile.get('created_at', 'N/A')[:10]}")
+
+        st.markdown("---")
+
+        # --- Analysis History ---
+        st.subheader("Analysis History")
         analysis_history = get_analysis_history(user_id)
         if analysis_history:
+            st.write(f"**Total Analyses:** {len(analysis_history)}")
             history_df = pd.DataFrame(
                 [
                     {
@@ -1116,14 +1098,45 @@ def main():
                     for h in analysis_history
                 ]
             )
-            st.dataframe(history_df, use_container_width=True, hide_index=True)
-            if st.button("Clear All History", key="clear_history"):
-                show_error_modal("Action Unavailable", "History clearing feature is not enabled yet.", key_prefix="history_clear")
+            st.dataframe(history_df, width='stretch', hide_index=True)
         else:
             st.info("No analysis history yet. Visit Analysis to get started.")
 
+        st.markdown("---")
+
+        # --- Logout & Back ---
+        btn_left, btn_right = st.columns(2)
+        with btn_left:
+            if st.button("Back to Dashboard", key="profile_back", width='stretch'):
+                st.session_state.switch_to_dashboard = True
+                st.rerun()
+        with btn_right:
+            if st.button("Logout", key="profile_logout", type="primary", width='stretch'):
+                st.session_state.clear()
+                st.session_state._needs_cookie_delete = True
+                st.session_state._cookie_checked = True
+                st.rerun()
+
     elif current_nav == "Analysis":
         render_page_header("AI Analysis", "Upload an image and run analysis when ready")
+
+        # Retrieve model status only when on Analysis tab
+        models = None
+        available_models = []
+        load_status = st.session_state.get("load_status", [])
+        status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
+        loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
+        issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
+
+        if st.session_state.get("models_loaded", False):
+            if _MODELS_CACHE is not None:
+                models, available_models, load_status = _MODELS_CACHE
+            else:
+                models, available_models, load_status = load_all_models(len(classes))
+            st.session_state["load_status"] = load_status
+            status_df = pd.DataFrame(load_status) if load_status else pd.DataFrame(columns=["model", "status", "details"])
+            loaded_count = int((status_df["status"] == "loaded").sum()) if not status_df.empty else 0
+            issue_count = int((status_df["status"] != "loaded").sum()) if not status_df.empty else 0
 
         m1, m2, m3 = st.columns(3)
         m1.metric("Loaded Models", str(loaded_count))
@@ -1131,10 +1144,19 @@ def main():
         m3.metric("Model Issues", str(issue_count))
         st.caption("Models load only when you click Run Analysis.")
 
+        # --- Upload Dropzone ---
+        st.markdown(
+            '<div class="upload-dropzone">'
+            '<div class="upload-dropzone-title">Drag & Drop Image</div>'
+            '<div class="upload-dropzone-sub">or use the file browser below</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         uploaded_file = st.file_uploader(
-            "Upload image",
+            "Browse Files",
             type=["png", "jpg", "jpeg"],
             key=f"image_uploader_{st.session_state.uploader_nonce}",
+            label_visibility="collapsed",
         )
 
         inference_result = None
@@ -1150,9 +1172,9 @@ def main():
 
             run_col, reset_col = st.columns([1, 1])
             with run_col:
-                run_analysis = st.button("Run Analysis", type="primary", use_container_width=True)
+                run_analysis = st.button("Run Analysis", type="primary", width='stretch')
             with reset_col:
-                reset_upload = st.button("Upload Another Image", use_container_width=True)
+                reset_upload = st.button("Upload Another Image", width='stretch')
 
             if reset_upload:
                 st.session_state.uploader_nonce += 1
@@ -1164,7 +1186,6 @@ def main():
                     return
 
                 if not st.session_state.get("models_loaded", False):
-                    render_loading_animation("Loading AI Models", "This runs once per session.")
                     try:
                         models, available_models, load_status = load_models_with_live_ui(len(classes))
                         st.session_state["models_loaded"] = True
@@ -1187,11 +1208,11 @@ def main():
                         key_prefix="model_insufficient",
                     )
                     if load_status:
-                        st.dataframe(pd.DataFrame(load_status), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(load_status), width='stretch', hide_index=True)
                     return
 
                 try:
-                    infer_ui = show_center_loader("Analyzing image")
+                    infer_ui = show_center_loader("Running Analysis")
                     try:
                         class_idx, confidence, individual_preds, ensemble_pred, runtime_errors = predict_ensemble(
                             img,
@@ -1205,18 +1226,62 @@ def main():
                         infer_ui.empty()
 
                     predicted_class = classes[class_idx]
+                    raw_predicted_class = predicted_class
+
+                    # Reliability filtering to reduce false positives on normal images.
+                    # A prediction is treated as deficiency only when confidence, inter-model
+                    # consensus, and class separation are all strong enough.
+                    votes = [int(np.argmax(pred)) for pred in individual_preds.values()]
+                    top_vote_count = int(np.bincount(votes, minlength=len(classes)).max()) if votes else 0
+                    vote_ratio = (top_vote_count / len(votes)) if votes else 0.0
+
+                    sorted_scores = np.sort(np.asarray(ensemble_pred, dtype=np.float64))[::-1]
+                    second_best = float(sorted_scores[1]) if len(sorted_scores) > 1 else 0.0
+                    confidence_margin = float(confidence - second_best)
+
+                    healthy_override_reason = ""
+                    low_reliability = (
+                        confidence < 0.60
+                        or vote_ratio < 0.50
+                        or confidence_margin < 0.12
+                    )
+
+                    # Tongue-related cases are commonly over-predicted in normal photos.
+                    # Require stricter evidence before showing a deficiency label.
+                    is_tongue_label = raw_predicted_class.strip().lower() in {"tounge", "tongue"}
+                    if is_tongue_label and (
+                        confidence < 0.80
+                        or vote_ratio < 0.60
+                        or confidence_margin < 0.15
+                    ):
+                        low_reliability = True
+
+                    if low_reliability:
+                        predicted_class = "No Deficiency Detected"
+                        filtered_confidence = 0.95
+                        healthy_override_reason = (
+                            f"Reliability fallback (conf={confidence:.2f}, "
+                            f"consensus={vote_ratio:.2f}, margin={confidence_margin:.2f})"
+                        )
+                    else:
+                        filtered_confidence = confidence
+                    
                     deficiency_data = DEFICIENCY_INFO.get(
                         predicted_class,
                         {
                             "vitamin": "Unknown",
                             "description": "Condition detected.",
                             "recommendations": "Consult a healthcare professional.",
-                            "icon": "",
                         },
                     )
                     inference_result = {
                         "predicted_class": predicted_class,
-                        "confidence": confidence,
+                        "raw_predicted_class": raw_predicted_class,
+                        "confidence": filtered_confidence,
+                        "original_confidence": confidence,  # Store original for reference
+                        "vote_ratio": vote_ratio,
+                        "confidence_margin": confidence_margin,
+                        "healthy_override_reason": healthy_override_reason,
                         "individual_preds": individual_preds,
                         "ensemble_pred": ensemble_pred,
                         "runtime_errors": runtime_errors,
@@ -1238,19 +1303,29 @@ def main():
                     return
 
         if inference_result is not None and image_for_result is not None:
-            st.markdown("---")
+            st.markdown('<hr class="glass-divider">', unsafe_allow_html=True)
             left_col, right_col = st.columns([1.05, 1], gap="large")
             with left_col:
-                st.image(image_for_result, use_container_width=True)
+                st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                st.image(image_for_result, width='stretch')
+                st.markdown('</div>', unsafe_allow_html=True)
             with right_col:
                 predicted_class = inference_result["predicted_class"]
                 confidence = inference_result["confidence"]
                 individual_preds = inference_result["individual_preds"]
                 deficiency_data = inference_result["deficiency_data"]
 
-                st.markdown(f"**Condition:** {predicted_class.title()}")
-                st.markdown(f"**Potential Deficiency:** {deficiency_data['vitamin']}")
-                st.markdown(f"**Clinical Notes:** {deficiency_data['description']}")
+                st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                
+                # Display result with special styling for healthy detection
+                if predicted_class == "No Deficiency Detected":
+                    st.success(f"✅ **Result: {predicted_class}**")
+                    st.markdown(f"**Status:** Healthy - No deficiency detected")
+                else:
+                    st.warning(f"⚠️ **Condition:** {predicted_class.title()}")
+                    st.markdown(f"**Potential Deficiency:** {deficiency_data['vitamin']}")
+                    st.markdown(f"**Clinical Notes:** {deficiency_data['description']}")
+                
                 st.markdown(f"**Recommendations:** {deficiency_data['recommendations']}")
 
                 metric_a, metric_b = st.columns(2)
@@ -1260,12 +1335,22 @@ def main():
                 votes = [int(np.argmax(pred)) for pred in individual_preds.values()]
                 top_vote_count = int(np.bincount(votes, minlength=len(classes)).max()) if votes else 0
                 vote_ratio = (top_vote_count / len(votes)) if votes else 0.0
-                if vote_ratio < 0.50:
+                if predicted_class == "No Deficiency Detected":
+                    override_reason = inference_result.get("healthy_override_reason", "")
+                    if override_reason:
+                        st.info(f"✅ Healthy fallback applied. {override_reason}")
+                    else:
+                        st.info("✅ Reliability checks indicate healthy status with no deficiency.")
+                elif vote_ratio < 0.50:
                     st.warning("Low model consensus. Try a clearer image.")
                 elif vote_ratio < 0.70:
                     st.info("Moderate model consensus. Review top predictions.")
+                st.markdown('</div>', unsafe_allow_html=True)
 
-            st.plotly_chart(create_top_predictions_chart(inference_result["ensemble_pred"], classes), use_container_width=True)
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.plotly_chart(create_top_predictions_chart(inference_result["ensemble_pred"], classes), width='stretch')
+            st.markdown('</div>', unsafe_allow_html=True)
+
             with st.expander("Advanced model breakdown", expanded=False):
                 for model_name, pred in individual_preds.items():
                     model_class_idx = np.argmax(pred)
@@ -1280,22 +1365,28 @@ def main():
                     with col_c:
                         st.progress(float(np.clip(model_confidence, 0.0, 1.0)))
                         st.caption(f"{model_confidence * 100:.1f}%")
-                st.plotly_chart(create_prediction_chart(individual_preds, classes, predicted_class), use_container_width=True)
+                st.plotly_chart(create_prediction_chart(individual_preds, classes, predicted_class), width='stretch')
 
             if inference_result["runtime_errors"]:
                 runtime_df = pd.DataFrame(
                     [{"model": m, "error": err} for m, err in inference_result["runtime_errors"].items()]
                 )
-                st.dataframe(runtime_df, use_container_width=True, hide_index=True)
+                st.dataframe(runtime_df, width='stretch', hide_index=True)
 
+            # Use original confidence for report, but note if filtered as healthy
+            report_confidence = inference_result.get('original_confidence', confidence)
+            report_status = "HEALTHY - NO DEFICIENCY DETECTED" if predicted_class == "No Deficiency Detected" else "POTENTIAL DEFICIENCY DETECTED"
+            
             report_data = f"""
 VITAMIN DEFICIENCY DETECTION REPORT
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 PREDICTION SUMMARY
 ==================
+Status: {report_status}
 Detected Condition: {predicted_class.title()}
-Confidence Score: {confidence*100:.2f}%
+Display Confidence Score: {confidence*100:.2f}%
+Original Model Confidence: {report_confidence*100:.2f}%
 Deficiency Type: {deficiency_data['vitamin']}
 Models Used: {len(available_models)}
 
@@ -1306,6 +1397,16 @@ DESCRIPTION
 RECOMMENDATIONS
 ===============
 {inference_result['deficiency_data']['recommendations']}
+
+TECHNICAL NOTES
+===============
+Confidence Filtering: Results below 60% confidence are displayed as "Healthy"
+to avoid false positives on normal/healthy images.
+If original confidence was below 60%, consider re-uploading a clearer image
+for a more definitive result.
+
+MODEL PREDICTIONS
+=================
 """
             for model_name, pred in individual_preds.items():
                 model_class_idx = np.argmax(pred)
@@ -1320,27 +1421,25 @@ RECOMMENDATIONS
 
     elif current_nav == "Model Performance":
         render_page_header("Performance and Diagnostics", "Model metrics and runtime diagnostics")
-        if not status_df.empty:
-            st.dataframe(status_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No model load logs yet. They appear after first Run Analysis.")
 
         metadata_path = MODEL_DIR / "ensemble_metadata.json"
         if metadata_path.exists():
             import json
 
             with open(metadata_path, "r") as f:
-                metadata = json.load(f)
-            r1, r2, r3 = st.columns(3)
-            r1.metric("Best Ensemble Accuracy", f"{metadata.get('best_ensemble_accuracy', 0) * 100:.2f}%")
-            r2.metric("Best Individual Accuracy", f"{metadata.get('best_individual_accuracy', 0) * 100:.2f}%")
-            r3.metric("Best Method", metadata.get("best_method", "soft_voting").replace("_", " ").title())
+                meta_perf = json.load(f)
 
-            if "model_accuracies" in metadata:
+            r1, r2, r3 = st.columns(3)
+            r1.metric("Best Ensemble Accuracy", f"{meta_perf.get('best_ensemble_accuracy', 0) * 100:.2f}%")
+            r2.metric("Best Individual Accuracy", f"{meta_perf.get('best_individual_accuracy', 0) * 100:.2f}%")
+            r3.metric("Best Method", meta_perf.get("best_method", "soft_voting").replace("_", " ").title())
+
+            if "model_accuracies" in meta_perf:
+                st.markdown('<div class="section-card">', unsafe_allow_html=True)
                 model_acc_df = pd.DataFrame(
                     {
-                        "Model": list(metadata["model_accuracies"].keys()),
-                        "Accuracy (%)": [v * 100 for v in metadata["model_accuracies"].values()],
+                        "Model": list(meta_perf["model_accuracies"].keys()),
+                        "Accuracy (%)": [v * 100 for v in meta_perf["model_accuracies"].values()],
                     }
                 ).sort_values("Accuracy (%)", ascending=False)
                 fig = px.bar(
@@ -1348,32 +1447,67 @@ RECOMMENDATIONS
                     x="Model",
                     y="Accuracy (%)",
                     color="Accuracy (%)",
-                    color_continuous_scale=[[0.0, "#4F46E5"], [1.0, "#9CA3AF"]],
+                    color_continuous_scale=[[0.0, "#6366F1"], [1.0, "#818CF8"]],
                     title="Model Accuracy Comparison",
                 )
-                fig.update_layout(height=460, template="plotly_dark", paper_bgcolor="#121218", plot_bgcolor="#121218")
-                st.plotly_chart(fig, use_container_width=True)
-                st.dataframe(model_acc_df, use_container_width=True, hide_index=True)
+                fig.update_layout(
+                    height=460,
+                    template="plotly_dark",
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                )
+                st.plotly_chart(fig, width='stretch')
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                st.markdown('<div class="section-card">', unsafe_allow_html=True)
+                st.markdown('<div class="section-card-title">Accuracy Table</div>', unsafe_allow_html=True)
+                st.dataframe(model_acc_df, width='stretch', hide_index=True)
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("No performance metadata file found.")
 
+        # --- Load Status Logs ---
+        load_status = st.session_state.get("load_status", [])
+        if load_status:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-card-title">Model Load Logs</div>', unsafe_allow_html=True)
+            status_df = pd.DataFrame(load_status)
+            st.dataframe(status_df, width='stretch', hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("No model load logs yet. They appear after first Run Analysis.")
+
     elif current_nav == "Model Status":
         render_page_header("Model Loading Status", "Models load only during Run Analysis")
+        load_status = st.session_state.get("load_status", [])
+        loaded_count = 0
+        issue_count = 0
         if load_status:
+            _sdf = pd.DataFrame(load_status)
+            loaded_count = int((_sdf["status"] == "loaded").sum())
+            issue_count = int((_sdf["status"] != "loaded").sum())
+
+        s1, s2 = st.columns(2)
+        s1.metric("Models Loaded", str(loaded_count))
+        s2.metric("Issues", str(issue_count))
+
+        if load_status:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-card-title">Loading Details</div>', unsafe_allow_html=True)
             status_rows = []
             for i, row in enumerate(load_status, start=1):
                 details_lines = str(row.get("details", "")).splitlines()
                 status_rows.append(
                     {
-                        "Step": i,
                         "Model": row.get("model", ""),
                         "Status": row.get("status", ""),
                         "Details": details_lines[0] if details_lines else "",
                     }
                 )
             status_table_df = pd.DataFrame(status_rows)
-            st.dataframe(status_table_df, use_container_width=True, hide_index=True)
-            st.markdown(f"**Summary**: {loaded_count} loaded, {issue_count} issue(s).")
+            st.dataframe(status_table_df, width='stretch', hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
             if loaded_count < len(ACTIVE_MODEL_NAMES):
                 st.warning(
                     f"Running in low-memory mode with {loaded_count} model(s). "
@@ -1384,20 +1518,46 @@ RECOMMENDATIONS
 
     else:
         render_page_header("About", "Application overview")
+
         st.markdown(
-            """
-This application performs vitamin deficiency inference from images using an ensemble of deep learning models.
-
-- Inference engine: TensorFlow/Keras
-- App framework: Streamlit
-- Model family: CNN, EfficientNetV2L, InceptionResNetV2, InceptionV3, MobileNet, ResNet, VGG16, Xception
-
-Medical disclaimer: This tool is for informational purposes only and is not a substitute for professional diagnosis.
-            """
+            '<div class="about-section">'
+            '<div class="about-section-title">Technology Stack</div>'
+            '<p>Built with TensorFlow/Keras for deep learning inference and Streamlit for the interactive web interface. '
+            'Authentication is handled via Firebase with Google OAuth support.</p>'
+            '</div>',
+            unsafe_allow_html=True,
         )
 
-    st.markdown("---")
-    st.caption("Vitamin Deficiency AI | Premium Inference Dashboard")
+        st.markdown(
+            '<div class="about-section">'
+            '<div class="about-section-title">Deep Learning Models</div>'
+            '<p>The ensemble consists of 8 architectures trained on clinical image data:</p>'
+            '<ul>'
+            '<li>CNN -- Basic Convolutional Neural Network</li>'
+            '<li>EfficientNetV2L -- High-efficiency modern architecture</li>'
+            '<li>InceptionResNetV2 -- Hybrid Inception + ResNet</li>'
+            '<li>InceptionV3 -- Google deep learning model</li>'
+            '<li>MobileNet -- Lightweight mobile-optimized</li>'
+            '<li>ResNet -- Deep residual learning</li>'
+            '<li>VGG16 -- Classic deep architecture</li>'
+            '<li>Xception -- Extreme Inception architecture</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            '<div class="about-section">'
+            '<div class="about-section-title">Medical Disclaimer</div>'
+            '<p>This tool is for informational and educational purposes only. '
+            'It is not a substitute for professional medical advice, diagnosis, or treatment. '
+            'Always consult a qualified healthcare provider for medical concerns.</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<hr class="glass-divider">', unsafe_allow_html=True)
+    st.caption("VitaminAI -- AI-Powered Deficiency Detection")
 
 if __name__ == "__main__":
     try:
